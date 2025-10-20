@@ -7,6 +7,9 @@ Features:
 - Smart caching (LRU)
 - Progressive loading
 - Memory efficient
+
+Updated to use CORRECT S3 path:
+- s3://nmdatasets/NeurIPS2025/R1_mini_L100_bdf (competition dataset)
 """
 
 import os
@@ -39,7 +42,7 @@ class StreamingHBNDataset(Dataset):
     data_source : str or list
         Either:
         - Local path: './data/R1_mini_L100'
-        - S3 URI: 's3://fcp-indi/data/Projects/HBN/BIDS_EEG/cmi_bids_R1'
+        - S3 URI: 's3://nmdatasets/NeurIPS2025/R1_mini_L100_bdf'
         - List of subjects: ['sub-XXXXX', 'sub-YYYYY']
     challenge : str
         'c1' or 'c2'
@@ -221,6 +224,10 @@ class StreamingHBNDataset(Dataset):
             # Resample if needed
             if raw.info['sfreq'] != self.target_sfreq:
                 raw.resample(self.target_sfreq, verbose=False)
+
+            # Apply bandpass filter (competition requirement: 0.5-50 Hz)
+            # CRITICAL: Official dataset applies this, we must too!
+            raw.filter(0.5, 50, fir_design='firwin', verbose=False)
 
             # Get data (channels × time)
             data = raw.get_data()

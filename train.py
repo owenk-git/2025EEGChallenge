@@ -2,11 +2,14 @@
 Training script for EEG Challenge 2025
 
 Usage:
+    # Official EEGChallengeDataset (recommended)
+    python train.py --challenge 1 --use_official --max_subjects 50 --epochs 50
+
+    # Custom S3 streaming
+    python train.py --challenge 1 --data_path s3://nmdatasets/NeurIPS2025/R1_mini_L100_bdf --use_streaming --max_subjects 50 --epochs 50
+
     # Local mini dataset
     python train.py --challenge 1 --data_path ./data/R1_mini_L100 --epochs 50
-
-    # S3 streaming (no download)
-    python train.py --challenge 1 --data_path s3://fcp-indi/data/Projects/HBN/BIDS_EEG/cmi_bids_R1 --epochs 50 --use_streaming --max_subjects 50
 """
 
 import argparse
@@ -19,6 +22,13 @@ from tqdm import tqdm
 from models.eegnet import create_model
 from data.dataset import create_dataloader
 from data.streaming_dataset import create_streaming_dataloader
+
+# Try to import official dataset (optional)
+try:
+    from data.official_dataset_example import create_official_dataloader
+    OFFICIAL_AVAILABLE = True
+except ImportError:
+    OFFICIAL_AVAILABLE = False
 
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
@@ -83,15 +93,42 @@ def main(args):
     print(f"Device: {device}")
 
     # Create data loaders
-    print(f"\n📊 Loading data from {args.data_path}")
+    print(f"\n📊 Loading data...")
 
-    # Choose streaming or local based on args or path
-    use_streaming = args.use_streaming or args.data_path.startswith('s3://')
+    # Choose data loading approach
+    if args.use_official:
+        # Use official EEGChallengeDataset
+        if not OFFICIAL_AVAILABLE:
+            print("❌ Official dataset not available. Install: pip install eegdash braindecode")
+            print("   Or remove --use_official flag to use custom loader")
+            return
 
-    if use_streaming:
-        print(f"☁️  Using S3 streaming (no download)")
+        print(f"📦 Using official EEGChallengeDataset")
+        print(f"   Task: {args.official_task}")
+        print(f"   Mini: {args.official_mini}")
         if args.max_subjects:
-            print(f"📉 Limiting to {args.max_subjects} subjects")
+            print(f"   Limiting to {args.max_subjects} subjects")
+
+        train_loader = create_official_dataloader(
+            task=args.official_task,
+            challenge=f'c{args.challenge}',
+            batch_size=args.batch_size,
+            mini=args.official_mini,
+            max_subjects=args.max_subjects,
+            num_workers=args.num_workers
+        )
+
+    elif args.use_streaming or (args.data_path and args.data_path.startswith('s3://')):
+        # Use custom S3 streaming
+        if not args.data_path:
+            print("❌ --data_path required for streaming mode")
+            return
+
+        print(f"☁️  Using custom S3 streaming (no download)")
+        print(f"   Path: {args.data_path}")
+        if args.max_subjects:
+            print(f"   Limiting to {args.max_subjects} subjects")
+
         train_loader = create_streaming_dataloader(
             args.data_path,
             challenge=f'c{args.challenge}',
@@ -100,8 +137,16 @@ def main(args):
             use_cache=True,
             cache_dir='./data_cache'
         )
+
     else:
+        # Use local dataset
+        if not args.data_path:
+            print("❌ --data_path required for local mode")
+            return
+
         print(f"📁 Using local dataset")
+        print(f"   Path: {args.data_path}")
+
         train_loader = create_dataloader(
             args.data_path,
             challenge=f'c{args.challenge}',
@@ -178,10 +223,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train EEG Challenge model")
 
     # Data args
-    parser.add_argument('--data_path', type=str, required=True,
-                        help='Path to BIDS dataset')
+    parser.add_argument('--data_path', type=str, default=None,
+                        help='Path to BIDS dataset (for custom/local mode)')
     parser.add_argument('--challenge', type=int, required=True, choices=[1, 2],
                         help='Challenge number (1 or 2)')
+
+    # Official dataset args
+    parser.add_argument('--use_official', action='store_true',
+                        help='Use official EEGChallengeDataset (recommended)')
+    parser.add_argument('--official_task', type=str, default='contrastChangeDetection',
+                        help='Task name for official dataset')
+    parser.add_argument('--official_mini', action='store_true',
+                        help='Use mini dataset (faster for testing)')
 
     # Model args
     parser.add_argument('--dropout', type=float, default=0.20,

@@ -18,8 +18,8 @@ def test_s3_streaming():
     print("🧪 Testing S3 Streaming Training Pipeline")
     print("="*70)
 
-    # Configuration
-    S3_PATH = "s3://fcp-indi/data/Projects/HBN/BIDS_EEG/cmi_bids_R1"
+    # Configuration - CORRECT S3 path for competition
+    S3_PATH = "s3://nmdatasets/NeurIPS2025/R1_mini_L100_bdf"
     MAX_SUBJECTS = 3  # Just 3 for quick test
     BATCH_SIZE = 2
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -132,7 +132,7 @@ def test_s3_streaming():
     print("✅ Ready for full training!")
     print("\n📝 Next step:")
     print("   python train.py --challenge 1 \\")
-    print("     --data_path s3://fcp-indi/data/Projects/HBN/BIDS_EEG/cmi_bids_R1 \\")
+    print("     --data_path s3://nmdatasets/NeurIPS2025/R1_mini_L100_bdf \\")
     print("     --use_streaming --max_subjects 50 --epochs 50")
     print("="*70)
 
