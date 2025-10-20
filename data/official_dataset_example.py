@@ -188,10 +188,14 @@ def create_official_dataloaders_with_split(
     max_subjects=None,
     num_workers=4,
     val_split=0.2,
-    random_seed=42
+    random_seed=42,
+    subject_wise=True
 ):
     """
     Creates train and validation DataLoaders with train/val split
+
+    ⚠️ WARNING: By default uses subject-wise splitting to prevent data leakage!
+    Each subject appears in ONLY train OR val, never both.
 
     Args:
         task: Task name for official dataset
@@ -202,6 +206,7 @@ def create_official_dataloaders_with_split(
         num_workers: Number of workers for data loading
         val_split: Fraction of data for validation (default: 0.2)
         random_seed: Random seed for reproducible split
+        subject_wise: If True, split by subjects (recommended!). If False, split by recordings (data leakage!)
 
     Returns:
         train_loader, val_loader
@@ -213,19 +218,50 @@ def create_official_dataloaders_with_split(
         max_subjects=max_subjects
     )
 
-    # Split dataset into train and validation
-    total_size = len(dataset)
-    val_size = int(total_size * val_split)
-    train_size = total_size - val_size
+    if subject_wise:
+        # RECOMMENDED: Split by subjects to prevent data leakage
+        print(f"   Using subject-wise split (prevents data leakage)")
 
-    # Use torch random_split for reproducible split
-    torch.manual_seed(random_seed)
-    train_dataset, val_dataset = torch.utils.data.random_split(
-        dataset, [train_size, val_size]
-    )
+        # Get unique subjects
+        subject_ids = dataset.eeg_dataset.description.iloc[dataset.valid_indices]['subject'].values
+        unique_subjects = np.unique(subject_ids)
 
-    print(f"   Train: {len(train_dataset)} samples")
-    print(f"   Val:   {len(val_dataset)} samples")
+        # Split subjects
+        np.random.seed(random_seed)
+        np.random.shuffle(unique_subjects)
+
+        n_val_subjects = int(len(unique_subjects) * val_split)
+        val_subjects = set(unique_subjects[:n_val_subjects])
+        train_subjects = set(unique_subjects[n_val_subjects:])
+
+        # Create indices for train and val based on subjects
+        train_indices = [i for i, idx in enumerate(dataset.valid_indices)
+                        if dataset.eeg_dataset.description.iloc[idx]['subject'] in train_subjects]
+        val_indices = [i for i, idx in enumerate(dataset.valid_indices)
+                      if dataset.eeg_dataset.description.iloc[idx]['subject'] in val_subjects]
+
+        # Create subsets
+        train_dataset = torch.utils.data.Subset(dataset, train_indices)
+        val_dataset = torch.utils.data.Subset(dataset, val_indices)
+
+        print(f"   Train: {len(train_indices)} recordings from {len(train_subjects)} subjects")
+        print(f"   Val:   {len(val_indices)} recordings from {len(val_subjects)} subjects")
+
+    else:
+        # OLD METHOD: Random split (can cause data leakage!)
+        print(f"   ⚠️  Using random recording split (may have data leakage!)")
+
+        total_size = len(dataset)
+        val_size = int(total_size * val_split)
+        train_size = total_size - val_size
+
+        torch.manual_seed(random_seed)
+        train_dataset, val_dataset = torch.utils.data.random_split(
+            dataset, [train_size, val_size]
+        )
+
+        print(f"   Train: {len(train_dataset)} recordings")
+        print(f"   Val:   {len(val_dataset)} recordings")
 
     train_loader = DataLoader(
         train_dataset,
@@ -244,6 +280,115 @@ def create_official_dataloaders_with_split(
     )
 
     return train_loader, val_loader
+
+
+def create_official_dataloaders_train_val_test(
+    task="contrastChangeDetection",
+    challenge='c1',
+    batch_size=32,
+    mini=True,
+    max_subjects=None,
+    num_workers=4,
+    train_split=0.6,
+    val_split=0.2,
+    test_split=0.2,
+    random_seed=42
+):
+    """
+    Creates train, validation, and test DataLoaders with subject-wise split
+
+    CRITICAL: Splits by subjects to prevent data leakage!
+    - Train: 60% subjects (for training)
+    - Val: 20% subjects (for hyperparameter tuning)
+    - Test: 20% subjects (for final evaluation, NEVER touch during development!)
+
+    Args:
+        task: Task name for official dataset
+        challenge: 'c1' or 'c2'
+        batch_size: Batch size
+        mini: Use mini dataset
+        max_subjects: Maximum number of subjects
+        num_workers: Number of workers for data loading
+        train_split: Fraction for training (default: 0.6)
+        val_split: Fraction for validation (default: 0.2)
+        test_split: Fraction for testing (default: 0.2)
+        random_seed: Random seed for reproducible split
+
+    Returns:
+        train_loader, val_loader, test_loader
+    """
+    assert abs(train_split + val_split + test_split - 1.0) < 1e-6, \
+        f"Splits must sum to 1.0, got {train_split + val_split + test_split}"
+
+    dataset = OfficialEEGDataset(
+        task=task,
+        challenge=challenge,
+        mini=mini,
+        max_subjects=max_subjects
+    )
+
+    print(f"   Using subject-wise train/val/test split (prevents data leakage)")
+
+    # Get unique subjects
+    subject_ids = dataset.eeg_dataset.description.iloc[dataset.valid_indices]['subject'].values
+    unique_subjects = np.unique(subject_ids)
+
+    # Split subjects
+    np.random.seed(random_seed)
+    np.random.shuffle(unique_subjects)
+
+    n_subjects = len(unique_subjects)
+    n_train = int(n_subjects * train_split)
+    n_val = int(n_subjects * val_split)
+    # Rest goes to test (handles rounding)
+
+    train_subjects = set(unique_subjects[:n_train])
+    val_subjects = set(unique_subjects[n_train:n_train + n_val])
+    test_subjects = set(unique_subjects[n_train + n_val:])
+
+    # Create indices based on subjects
+    train_indices = [i for i, idx in enumerate(dataset.valid_indices)
+                    if dataset.eeg_dataset.description.iloc[idx]['subject'] in train_subjects]
+    val_indices = [i for i, idx in enumerate(dataset.valid_indices)
+                  if dataset.eeg_dataset.description.iloc[idx]['subject'] in val_subjects]
+    test_indices = [i for i, idx in enumerate(dataset.valid_indices)
+                   if dataset.eeg_dataset.description.iloc[idx]['subject'] in test_subjects]
+
+    # Create subsets
+    train_dataset = torch.utils.data.Subset(dataset, train_indices)
+    val_dataset = torch.utils.data.Subset(dataset, val_indices)
+    test_dataset = torch.utils.data.Subset(dataset, test_indices)
+
+    print(f"   Train: {len(train_indices)} recordings from {len(train_subjects)} subjects ({len(train_subjects)/n_subjects*100:.1f}%)")
+    print(f"   Val:   {len(val_indices)} recordings from {len(val_subjects)} subjects ({len(val_subjects)/n_subjects*100:.1f}%)")
+    print(f"   Test:  {len(test_indices)} recordings from {len(test_subjects)} subjects ({len(test_subjects)/n_subjects*100:.1f}%)")
+    print(f"   ⚠️  NEVER use test set for model selection or hyperparameter tuning!")
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    return train_loader, val_loader, test_loader
 
 
 # Test script to verify it works
