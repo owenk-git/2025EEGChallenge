@@ -24,16 +24,20 @@ from datetime import datetime
 from models.eegnet import create_model
 from data.dataset import create_dataloader
 from data.streaming_dataset import create_streaming_dataloader
+from utils.metrics import compute_all_metrics, normalized_rmse
 
 # Try to import official dataset (optional)
 try:
-    from data.official_dataset_example import create_official_dataloader
+    from data.official_dataset_example import (
+        create_official_dataloader,
+        create_official_dataloaders_with_split
+    )
     OFFICIAL_AVAILABLE = True
 except ImportError:
     OFFICIAL_AVAILABLE = False
 
 
-def log_experiment(args, final_val_loss, best_epoch):
+def log_experiment(args, best_metrics, best_epoch):
     """Log experiment configuration and results"""
     if args.exp_num is None:
         return
@@ -56,7 +60,9 @@ def log_experiment(args, final_val_loss, best_epoch):
             "official_mini": args.official_mini if args.use_official else None,
         },
         "results": {
-            "final_val_loss": round(final_val_loss, 4),
+            "best_val_nrmse": round(best_metrics.get('nrmse', 0), 4),
+            "best_val_rmse": round(best_metrics.get('rmse', 0), 4),
+            "best_val_mae": round(best_metrics.get('mae', 0), 4),
             "best_epoch": best_epoch,
         }
     }
@@ -126,6 +132,48 @@ def validate(model, dataloader, criterion, device):
 
     avg_loss = total_loss / num_batches
     return avg_loss
+
+
+def validate_with_metrics(model, dataloader, criterion, device):
+    """
+    Validate model and compute all metrics
+
+    Returns:
+        avg_loss: Average MSE loss
+        metrics: Dict with NRMSE, RMSE, MAE
+        all_predictions: All predictions (for saving)
+        all_targets: All targets (for saving)
+    """
+    model.eval()
+    total_loss = 0
+    num_batches = 0
+    all_predictions = []
+    all_targets = []
+
+    with torch.no_grad():
+        for data, target in dataloader:
+            data, target = data.to(device), target.to(device)
+
+            output = model(data)
+            loss = criterion(output, target)
+
+            total_loss += loss.item()
+            num_batches += 1
+
+            # Collect predictions and targets
+            all_predictions.append(output.cpu())
+            all_targets.append(target.cpu())
+
+    avg_loss = total_loss / num_batches
+
+    # Concatenate all predictions and targets
+    all_predictions = torch.cat(all_predictions, dim=0)
+    all_targets = torch.cat(all_targets, dim=0)
+
+    # Compute metrics
+    metrics = compute_all_metrics(all_predictions, all_targets)
+
+    return avg_loss, metrics, all_predictions, all_targets
 
 
 def main(args):
@@ -312,6 +360,12 @@ if __name__ == "__main__":
                         help='Use S3 streaming (no download)')
     parser.add_argument('--max', '--max_subjects', type=int, default=None,
                         dest='max_subjects', help='Maximum number of subjects to use (for efficiency)')
+
+    # Validation args
+    parser.add_argument('--val_split', type=float, default=0.2,
+                        help='Validation split fraction (default: 0.2)')
+    parser.add_argument('--no_val', action='store_true',
+                        help='Disable validation split (train on all data)')
 
     # Experiment tracking
     parser.add_argument('--num', '--exp_num', type=int, default=None,

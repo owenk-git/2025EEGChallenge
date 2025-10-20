@@ -180,6 +180,72 @@ def create_official_dataloader(
     return dataloader
 
 
+def create_official_dataloaders_with_split(
+    task="contrastChangeDetection",
+    challenge='c1',
+    batch_size=32,
+    mini=True,
+    max_subjects=None,
+    num_workers=4,
+    val_split=0.2,
+    random_seed=42
+):
+    """
+    Creates train and validation DataLoaders with train/val split
+
+    Args:
+        task: Task name for official dataset
+        challenge: 'c1' or 'c2'
+        batch_size: Batch size
+        mini: Use mini dataset
+        max_subjects: Maximum number of subjects
+        num_workers: Number of workers for data loading
+        val_split: Fraction of data for validation (default: 0.2)
+        random_seed: Random seed for reproducible split
+
+    Returns:
+        train_loader, val_loader
+    """
+    dataset = OfficialEEGDataset(
+        task=task,
+        challenge=challenge,
+        mini=mini,
+        max_subjects=max_subjects
+    )
+
+    # Split dataset into train and validation
+    total_size = len(dataset)
+    val_size = int(total_size * val_split)
+    train_size = total_size - val_size
+
+    # Use torch random_split for reproducible split
+    torch.manual_seed(random_seed)
+    train_dataset, val_dataset = torch.utils.data.random_split(
+        dataset, [train_size, val_size]
+    )
+
+    print(f"   Train: {len(train_dataset)} samples")
+    print(f"   Val:   {len(val_dataset)} samples")
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,  # No shuffle for validation
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    return train_loader, val_loader
+
+
 # Test script to verify it works
 if __name__ == '__main__':
     print("\n" + "="*60)
