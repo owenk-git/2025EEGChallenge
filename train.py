@@ -2,7 +2,11 @@
 Training script for EEG Challenge 2025
 
 Usage:
+    # Local mini dataset
     python train.py --challenge 1 --data_path ./data/R1_mini_L100 --epochs 50
+
+    # S3 streaming (no download)
+    python train.py --challenge 1 --data_path s3://fcp-indi/data/Projects/HBN/BIDS_EEG/cmi_bids_R1 --epochs 50 --use_streaming --max_subjects 50
 """
 
 import argparse
@@ -14,6 +18,7 @@ from tqdm import tqdm
 
 from models.eegnet import create_model
 from data.dataset import create_dataloader
+from data.streaming_dataset import create_streaming_dataloader
 
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
@@ -79,13 +84,31 @@ def main(args):
 
     # Create data loaders
     print(f"\n📊 Loading data from {args.data_path}")
-    train_loader = create_dataloader(
-        args.data_path,
-        challenge=f'c{args.challenge}',
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.num_workers
-    )
+
+    # Choose streaming or local based on args or path
+    use_streaming = args.use_streaming or args.data_path.startswith('s3://')
+
+    if use_streaming:
+        print(f"☁️  Using S3 streaming (no download)")
+        if args.max_subjects:
+            print(f"📉 Limiting to {args.max_subjects} subjects")
+        train_loader = create_streaming_dataloader(
+            args.data_path,
+            challenge=f'c{args.challenge}',
+            batch_size=args.batch_size,
+            max_subjects=args.max_subjects,
+            use_cache=True,
+            cache_dir='./data_cache'
+        )
+    else:
+        print(f"📁 Using local dataset")
+        train_loader = create_dataloader(
+            args.data_path,
+            challenge=f'c{args.challenge}',
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=args.num_workers
+        )
 
     # Create model
     print(f"\n🧠 Creating model for Challenge {args.challenge}")
@@ -179,6 +202,12 @@ if __name__ == "__main__":
                         help='Directory to save checkpoints')
     parser.add_argument('--save_every', type=int, default=10,
                         help='Save checkpoint every N epochs')
+
+    # Streaming args
+    parser.add_argument('--use_streaming', action='store_true',
+                        help='Use S3 streaming (no download)')
+    parser.add_argument('--max_subjects', type=int, default=None,
+                        help='Maximum number of subjects to use (for efficiency)')
 
     args = parser.parse_args()
     main(args)

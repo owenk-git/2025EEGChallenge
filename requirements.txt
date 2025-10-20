@@ -11,3 +11,6 @@ mne-bids>=0.13
 braindecode>=0.8.0
 moabb>=0.5.0
 gdown
+s3fs
+boto3
+awscli
