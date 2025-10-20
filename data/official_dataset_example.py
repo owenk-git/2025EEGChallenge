@@ -88,7 +88,10 @@ class OfficialEEGDataset(Dataset):
         print(f"   Unique subjects: {self.eeg_dataset.description['subject'].nunique()}")
 
         # Debug: print available columns
-        print(f"   Available columns: {list(self.eeg_dataset.description.columns)}")
+        print(f"\n📋 Dataset columns: {list(self.eeg_dataset.description.columns)}")
+        print(f"📋 First row sample:")
+        print(self.eeg_dataset.description.iloc[0].to_dict())
+        print()
 
         # Apply max_subjects limit if specified
         if max_subjects is not None:
