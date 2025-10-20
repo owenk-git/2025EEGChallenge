@@ -36,9 +36,9 @@ class OfficialEEGDataset(Dataset):
         self,
         task="contrastChangeDetection",
         challenge='c1',  # 'c1' or 'c2'
-        release="all",  # "all" loads all releases (R1-R11 + NC), or specify "R5", etc.
+        release="R11",  # Use latest release R11 (or specify R1-R11)
         cache_dir='./data_cache/eeg_challenge',
-        mini=False,  # Default: Use FULL dataset (3,387 subjects)
+        mini=False,  # Default: Use FULL dataset
         max_subjects=None,
         target_sfreq=100,
         n_channels=129,
@@ -49,9 +49,9 @@ class OfficialEEGDataset(Dataset):
             task: Task name (contrastChangeDetection, etc.)
             challenge: 'c1' (response time) or 'c2' (externalizing factor)
             release: Dataset release version
-                    - "all": Load ALL releases (R1-R11 + NC) - 3,387 subjects total
-                    - "R5": Load specific release (e.g., R5)
-                    - Default: "all" (uses full competition dataset)
+                    - "R11": Latest release (recommended, most subjects)
+                    - "R1"-"R10": Earlier releases
+                    - Default: "R11" (latest and most complete)
             cache_dir: Where to cache downloaded data (S3 streaming path)
             mini: Use mini dataset for faster iteration (default: False = full dataset)
             max_subjects: Limit number of subjects (for quick testing)
@@ -74,7 +74,7 @@ class OfficialEEGDataset(Dataset):
 
         print(f"📦 Loading EEGChallengeDataset")
         print(f"   Task: {task}")
-        print(f"   Release: {release} {'(ALL RELEASES - 3,387 subjects)' if release == 'all' else ''}")
+        print(f"   Release: {release}")
         print(f"   Mini: {mini} {'⚡ (small subset for testing)' if mini else '🌐 (FULL dataset)'}")
 
         self.eeg_dataset = EEGChallengeDataset(
@@ -86,13 +86,6 @@ class OfficialEEGDataset(Dataset):
 
         print(f"✅ Loaded {len(self.eeg_dataset.datasets)} recordings")
         print(f"   Unique subjects: {self.eeg_dataset.description['subject'].nunique()}")
-
-        if release == "all" and not mini:
-            expected_subjects = 3387
-            actual_subjects = self.eeg_dataset.description['subject'].nunique()
-            print(f"   Expected ~{expected_subjects} subjects (full competition dataset)")
-            if actual_subjects < expected_subjects * 0.9:
-                print(f"   ⚠️  Warning: Got {actual_subjects} subjects, expected ~{expected_subjects}")
 
         # Apply max_subjects limit if specified
         if max_subjects is not None:
@@ -167,15 +160,15 @@ def create_official_dataloader(
     task="contrastChangeDetection",
     challenge='c1',
     batch_size=32,
-    mini=False,  # Default: FULL dataset (3,387 subjects)
-    release="all",  # Default: ALL releases
+    mini=False,  # Default: FULL dataset
+    release="R11",  # Default: Latest release R11
     max_subjects=None,
     num_workers=4
 ):
     """
     Creates DataLoader using official EEGChallengeDataset
 
-    Default: Streams ALL data from S3 (R1-R11 + NC) = 3,387 subjects
+    Default: Streams from R11 (latest release) from S3
     Set mini=True for quick testing with small subset
 
     This is what would replace create_streaming_dataloader() in train.py
@@ -203,8 +196,8 @@ def create_official_dataloaders_with_split(
     task="contrastChangeDetection",
     challenge='c1',
     batch_size=32,
-    mini=False,  # Default: FULL dataset (3,387 subjects)
-    release="all",  # Default: ALL releases
+    mini=False,  # Default: FULL dataset
+    release="R11",  # Default: Latest release R11
     max_subjects=None,
     num_workers=4,
     val_split=0.2,
@@ -214,7 +207,7 @@ def create_official_dataloaders_with_split(
     """
     Creates train and validation DataLoaders with train/val split
 
-    Default: Streams ALL data from S3 (R1-R11 + NC) = 3,387 subjects
+    Default: Streams from R11 (latest release) from S3
     Set mini=True for quick testing with small subset
 
     ⚠️ WARNING: By default uses subject-wise splitting to prevent data leakage!
@@ -225,7 +218,7 @@ def create_official_dataloaders_with_split(
         challenge: 'c1' or 'c2'
         batch_size: Batch size
         mini: Use mini dataset (default: False = full dataset)
-        release: "all" for all releases, or specific release like "R5"
+        release: Release version (default: "R11" = latest)
         max_subjects: Maximum number of subjects
         num_workers: Number of workers for data loading
         val_split: Fraction of data for validation (default: 0.2)
@@ -311,8 +304,8 @@ def create_official_dataloaders_train_val_test(
     task="contrastChangeDetection",
     challenge='c1',
     batch_size=32,
-    mini=False,  # Default: FULL dataset (3,387 subjects)
-    release="all",  # Default: ALL releases
+    mini=False,  # Default: FULL dataset
+    release="R11",  # Default: Latest release R11
     max_subjects=None,
     num_workers=4,
     train_split=0.6,
@@ -323,7 +316,7 @@ def create_official_dataloaders_train_val_test(
     """
     Creates train, validation, and test DataLoaders with subject-wise split
 
-    Default: Streams ALL data from S3 (R1-R11 + NC) = 3,387 subjects
+    Default: Streams from R11 (latest release) from S3
     Set mini=True for quick testing with small subset
 
     CRITICAL: Splits by subjects to prevent data leakage!
@@ -336,7 +329,7 @@ def create_official_dataloaders_train_val_test(
         challenge: 'c1' or 'c2'
         batch_size: Batch size
         mini: Use mini dataset (default: False = full dataset)
-        release: "all" for all releases, or specific release like "R5"
+        release: Release version (default: "R11" = latest)
         max_subjects: Maximum number of subjects
         num_workers: Number of workers for data loading
         train_split: Fraction for training (default: 0.6)
