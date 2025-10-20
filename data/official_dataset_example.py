@@ -179,9 +179,6 @@ class OfficialEEGDataset(Dataset):
                 # Extract from events or annotations in the raw data
                 # For now, use normalized age as proxy (temporary)
                 # TODO: Need to extract actual RT from task events
-                if idx == 0:
-                    print(f"\n⚠️  WARNING: Using age as proxy for RT (need to implement proper RT extraction)")
-                    print(f"Challenge 1 requires extracting RT from task events in the Raw object\n")
 
                 # Normalize age to 0-1 range (ages typically 5-22)
                 age = subject_info.get('age', 15.0)
