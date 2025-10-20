@@ -92,10 +92,14 @@ class OfficialEEGDataset(Dataset):
         print(f"📋 First row sample:")
         print(self.eeg_dataset.description.iloc[0].to_dict())
 
-        # Show target value ranges
-        if 'externalizing' in self.eeg_dataset.description.columns:
+        # Show target value ranges for Challenge 2
+        if challenge == 'c2' and 'externalizing' in self.eeg_dataset.description.columns:
             ext_values = self.eeg_dataset.description['externalizing']
-            print(f"\n📊 Externalizing values: min={ext_values.min():.3f}, max={ext_values.max():.3f}, mean={ext_values.mean():.3f}")
+            valid_ext = ext_values.dropna()
+            print(f"\n📊 Externalizing values:")
+            print(f"   Count: {len(valid_ext)}/{len(ext_values)} (NaN: {ext_values.isna().sum()})")
+            print(f"   Range: [{valid_ext.min():.3f}, {valid_ext.max():.3f}]")
+            print(f"   Mean: {valid_ext.mean():.3f}, Std: {valid_ext.std():.3f}")
         print()
 
         # Apply max_subjects limit if specified

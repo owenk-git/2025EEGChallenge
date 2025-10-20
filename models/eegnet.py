@@ -108,7 +108,8 @@ class EEGNeX(nn.Module):
                     if m.bias is not None:
                         nn.init.constant_(m.bias, 0)
                 else:
-                    nn.init.normal_(m.weight, 0, 0.01)
+                    # C2: Use more stable initialization
+                    nn.init.xavier_uniform_(m.weight, gain=0.1)
                     if m.bias is not None:
                         nn.init.constant_(m.bias, 0)
 

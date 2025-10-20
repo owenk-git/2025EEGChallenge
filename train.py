@@ -84,25 +84,44 @@ def log_experiment(args, best_metrics, best_epoch):
     print(f"\n✅ Experiment #{args.exp_num} logged to {json_log}")
 
 
-def train_epoch(model, dataloader, criterion, optimizer, device):
+def train_epoch(model, dataloader, criterion, optimizer, device, clip_grad=1.0):
     """Train for one epoch"""
     model.train()
     total_loss = 0
     num_batches = 0
 
     pbar = tqdm(dataloader, desc="Training")
-    for data, target in pbar:
+    for batch_idx, (data, target) in enumerate(pbar):
         data, target = data.to(device), target.to(device)
+
+        # Check for NaN in inputs
+        if torch.isnan(data).any() or torch.isnan(target).any():
+            print(f"\n⚠️  NaN in batch {batch_idx}: data={torch.isnan(data).sum().item()}, target={torch.isnan(target).sum().item()}")
+            continue
 
         # Forward pass
         optimizer.zero_grad()
         output = model(data)
 
+        # Check for NaN in output
+        if torch.isnan(output).any():
+            print(f"\n⚠️  NaN in model output at batch {batch_idx}")
+            continue
+
         # Compute loss
         loss = criterion(output, target)
 
-        # Backward pass
+        # Check for NaN loss
+        if torch.isnan(loss):
+            print(f"\n⚠️  NaN loss at batch {batch_idx}")
+            print(f"   Output range: [{output.min().item():.3f}, {output.max().item():.3f}]")
+            print(f"   Target range: [{target.min().item():.3f}, {target.max().item():.3f}]")
+            continue
+
+        # Backward pass with gradient clipping
         loss.backward()
+        if clip_grad > 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad)
         optimizer.step()
 
         total_loss += loss.item()
@@ -111,7 +130,7 @@ def train_epoch(model, dataloader, criterion, optimizer, device):
         # Update progress bar
         pbar.set_postfix({'loss': f'{loss.item():.4f}'})
 
-    avg_loss = total_loss / num_batches
+    avg_loss = total_loss / num_batches if num_batches > 0 else float('nan')
     return avg_loss
 
 
