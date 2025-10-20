@@ -10,14 +10,14 @@ This is your complete setup for the competition. Everything is ready to go!
 
 ### 1. Test the pipeline works:
 ```bash
-python train.py -c 1 -o -m --max 5 -e 3
+python run.py -c 1 -o -m --max 5 -e 3
 ```
 **Expected**: Training starts, loads ~10 subjects from mini dataset
 
 ### 2. If test passes, run full training:
 ```bash
-python train.py -c 1 -o -e 100
-python train.py -c 2 -o -e 100
+python run.py -c 1 -o -e 100
+python run.py -c 2 -o -e 100
 ```
 **Expected**: Trains on ALL 3,387 subjects (12-24 hours)
 
@@ -107,7 +107,7 @@ Upload ZIP to: https://www.codabench.org/competitions/9975/
 - Create exploration framework
 
 ### Week 2: Exploration (Now → Next Week)
-- Run baseline: `python train.py -c 1 -o -e 100`
+- Run baseline: `python run.py -c 1 -o -e 100`
 - Run 10 experiments: `bash scripts/run_exploration_streaming.sh`
 - Find best hyperparameters
 - **Target**: 1.05 NRMSE
@@ -136,7 +136,7 @@ Upload ZIP to: https://www.codabench.org/competitions/9975/
 
 ### Option 1: Quick Test (5 minutes)
 ```bash
-python train.py -c 1 -o -m --max 5 -e 3
+python run.py -c 1 -o -m --max 5 -e 3
 ```
 **Purpose**: Verify everything works
 **Time**: 5 minutes
@@ -147,8 +147,8 @@ python train.py -c 1 -o -m --max 5 -e 3
 ### Option 2: Baseline Training (Today/Tonight)
 ```bash
 # Both challenges in parallel (use 2 GPUs)
-CUDA_VISIBLE_DEVICES=0 python train.py -c 1 -o -e 100 &
-CUDA_VISIBLE_DEVICES=1 python train.py -c 2 -o -e 100 &
+CUDA_VISIBLE_DEVICES=0 python run.py -c 1 -o -e 100 &
+CUDA_VISIBLE_DEVICES=1 python run.py -c 2 -o -e 100 &
 wait
 ```
 **Purpose**: Get first competitive submission
@@ -175,14 +175,14 @@ python scripts/compare_exploration.py
 
 ### For Training:
 
-**Main script**: `train.py`
+**Main script**: `run.py`
 
 ```bash
 # Basic usage
-python train.py -c <challenge> -o -e <epochs>
+python run.py -c <challenge> -o -e <epochs>
 
 # With options
-python train.py -c 1 -o -e 100 \
+python run.py -c 1 -o -e 100 \
   --max 100 \        # Limit to 100 subjects (for testing)
   --dropout 0.3 \    # Higher regularization
   --lr 5e-4 \        # Lower learning rate
@@ -388,10 +388,10 @@ Epoch 1/100
 ### Essential Commands:
 ```bash
 # Quick test
-python train.py -c 1 -o -m --max 5 -e 3
+python run.py -c 1 -o -m --max 5 -e 3
 
 # Full training
-python train.py -c 1 -o -e 100
+python run.py -c 1 -o -e 100
 
 # Create submission
 python create_submission.py \
@@ -416,11 +416,11 @@ python create_submission.py \
 Everything is set up. All you need to do is:
 
 ### Today:
-1. Quick test: `python train.py -c 1 -o -m --max 5 -e 3` (5 min)
+1. Quick test: `python run.py -c 1 -o -m --max 5 -e 3` (5 min)
 2. Verify it works ✅
 
 ### This Week:
-1. Full training: `python train.py -c 1 -o -e 100` (12-24 hrs)
+1. Full training: `python run.py -c 1 -o -e 100` (12-24 hrs)
 2. Create submission
 3. Submit to Codabench
 4. Beat 1.14! 🎯

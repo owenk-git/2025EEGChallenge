@@ -3,13 +3,13 @@ Training script for EEG Challenge 2025
 
 Usage:
     # Official EEGChallengeDataset (recommended)
-    python train.py --challenge 1 --use_official --max_subjects 50 --epochs 50
+    python run.py --challenge 1 --use_official --max_subjects 50 --epochs 50
 
     # Custom S3 streaming
-    python train.py --challenge 1 --data_path s3://nmdatasets/NeurIPS2025/R1_mini_L100_bdf --use_streaming --max_subjects 50 --epochs 50
+    python run.py --challenge 1 --data_path s3://nmdatasets/NeurIPS2025/R1_mini_L100_bdf --use_streaming --max_subjects 50 --epochs 50
 
     # Local mini dataset
-    python train.py --challenge 1 --data_path ./data/R1_mini_L100 --epochs 50
+    python run.py --challenge 1 --data_path ./data/R1_mini_L100 --epochs 50
 """
 
 import argparse

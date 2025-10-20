@@ -16,10 +16,10 @@ Training pipeline for NeurIPS 2025 EEG Foundation Challenge.
 **Quick Commands**:
 ```bash
 # Test (5 min)
-python train.py -c 1 -o -m --max 5 -e 3
+python run.py -c 1 -o -m --max 5 -e 3
 
 # Train (12-24 hrs)
-python train.py -c 1 -o -e 100
+python run.py -c 1 -o -e 100
 ```
 
 **New setup streams ALL 3,387 subjects automatically!** ✅
@@ -55,17 +55,17 @@ pip install eegdash braindecode s3fs boto3 mne pandas torch
 
 ### 2. Test the Pipeline (5 minutes)
 ```bash
-python train.py -c 1 -o -m --max 5 -e 3
+python run.py -c 1 -o -m --max 5 -e 3
 ```
 **Verify**: Should load ~10 subjects and start training
 
 ### 3. Train on ALL Data (12-24 hours)
 ```bash
 # Challenge 1
-python train.py -c 1 -o -e 100
+python run.py -c 1 -o -e 100
 
 # Challenge 2
-python train.py -c 2 -o -e 100
+python run.py -c 2 -o -e 100
 ```
 **Note**: Streams ALL 3,387 subjects from R1-R11 + NC automatically
 
@@ -85,19 +85,19 @@ Upload ZIP to: https://www.codabench.org/competitions/9975/
 
 ### Quick Test (Mini dataset)
 ```bash
-python train.py -c 1 -o -m --max 5 -e 3
+python run.py -c 1 -o -m --max 5 -e 3
 ```
 **Uses**: Small mini subset (~5 minutes)
 
 ### Medium Training (100 subjects)
 ```bash
-python train.py -c 1 -o --max 100 -e 50
+python run.py -c 1 -o --max 100 -e 50
 ```
 **Uses**: 100 subjects from full dataset (~2 hours)
 
 ### Full Training (ALL 3,387 subjects)
 ```bash
-python train.py -c 1 -o -e 100
+python run.py -c 1 -o -e 100
 ```
 **Uses**: Complete competition dataset (~12-24 hours)
 
@@ -116,7 +116,7 @@ python train.py -c 1 -o -e 100
 ```
 BCI/
 ├── 📄 Core Scripts
-│   ├── train.py                           # Main training
+│   ├── run.py                           # Main training
 │   ├── train_kfold.py                     # K-Fold CV
 │   ├── create_submission.py               # Single model submission
 │   └── create_ensemble_submission.py      # Ensemble submission
@@ -316,11 +316,11 @@ See [docs/guides/DATA_SETUP.md](docs/guides/DATA_SETUP.md) for complete troubles
 
 ```bash
 # Quick test (5 min)
-python train.py -c 1 -o -m --max 5 -e 3
+python run.py -c 1 -o -m --max 5 -e 3
 
 # Full training (12-24 hrs)
-python train.py -c 1 -o -e 100
-python train.py -c 2 -o -e 100
+python run.py -c 1 -o -e 100
+python run.py -c 2 -o -e 100
 
 # Create submission
 python create_submission.py \
