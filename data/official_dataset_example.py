@@ -91,6 +91,11 @@ class OfficialEEGDataset(Dataset):
         print(f"\n📋 Dataset columns: {list(self.eeg_dataset.description.columns)}")
         print(f"📋 First row sample:")
         print(self.eeg_dataset.description.iloc[0].to_dict())
+
+        # Show target value ranges
+        if 'externalizing' in self.eeg_dataset.description.columns:
+            ext_values = self.eeg_dataset.description['externalizing']
+            print(f"\n📊 Externalizing values: min={ext_values.min():.3f}, max={ext_values.max():.3f}, mean={ext_values.mean():.3f}")
         print()
 
         # Apply max_subjects limit if specified
