@@ -108,8 +108,8 @@ class OfficialEEGDataset(Dataset):
     def __getitem__(self, idx):
         """
         Returns:
-            data: Tensor of shape (1, n_channels, n_times)
-            target: Tensor of shape (1,)
+            data: Tensor of shape (n_channels, n_times)
+            target: Scalar tensor
         """
         actual_idx = self.valid_indices[idx]
 
@@ -135,8 +135,9 @@ class OfficialEEGDataset(Dataset):
             pad_width = self.n_channels - eeg_data.shape[0]
             eeg_data = np.pad(eeg_data, ((0, pad_width), (0, 0)), mode='constant')
 
-        # Convert to tensor and add batch dimension: (n_channels, n_times) -> (1, n_channels, n_times)
-        data = torch.tensor(eeg_data, dtype=torch.float32).unsqueeze(0)
+        # Convert to tensor: (n_channels, n_times)
+        # Don't add extra dimension - DataLoader will batch automatically
+        data = torch.tensor(eeg_data, dtype=torch.float32)
 
         # Get behavioral target from dataset description
         # (This is the key advantage - targets are automatically loaded!)
@@ -151,7 +152,7 @@ class OfficialEEGDataset(Dataset):
             # Challenge 2: Externalizing factor (centered around 0)
             target_value = subject_info.get('externalizing', 0.0)
 
-        target = torch.tensor([target_value], dtype=torch.float32)
+        target = torch.tensor(target_value, dtype=torch.float32)
 
         return data, target
 
