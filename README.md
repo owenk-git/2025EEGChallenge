@@ -9,28 +9,105 @@ Training pipeline for NeurIPS 2025 EEG Foundation Challenge.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 NEW USERS: Start Here!
 
+**👉 [START_HERE_MASTER.md](START_HERE_MASTER.md)** - Complete guide with everything you need!
+
+**Quick Commands**:
 ```bash
-# 1. Install packages (on remote server)
+# Test (5 min)
+python train.py -c 1 -o -m --max 5 -e 3
+
+# Train (12-24 hrs)
+python train.py -c 1 -o -e 100
+```
+
+**New setup streams ALL 3,387 subjects automatically!** ✅
+
+---
+
+## 📚 Documentation
+
+### Quick Start
+- **[START_HERE_MASTER.md](START_HERE_MASTER.md)** - Complete guide (start here!)
+- **[docs/guides/TRAIN_NOW.md](docs/guides/TRAIN_NOW.md)** - Quick command reference
+- **[docs/guides/DATA_SETUP.md](docs/guides/DATA_SETUP.md)** - Data loading explained
+- **[docs/INDEX.md](docs/INDEX.md)** - Complete documentation index
+
+### Strategy
+- **[docs/strategy/FUTURE_STRATEGY_ROADMAP.md](docs/strategy/FUTURE_STRATEGY_ROADMAP.md)** - Week-by-week plan
+- **[docs/strategy/ULTRATHINK_DATA_STRATEGY.md](docs/strategy/ULTRATHINK_DATA_STRATEGY.md)** - Data & validation strategy
+- **[docs/strategies/EXPLORATION_STRATEGY.md](docs/strategies/EXPLORATION_STRATEGY.md)** - 10 experiments to run
+
+### Reference
+- **[docs/reference/PROJECT_ORGANIZATION.md](docs/reference/PROJECT_ORGANIZATION.md)** - File structure
+- **[docs/reference/ANSWERS_TO_YOUR_QUESTIONS.md](docs/reference/ANSWERS_TO_YOUR_QUESTIONS.md)** - Recent changes Q&A
+- **[docs/reference/ULTRATHINK_COMPLETE_SUMMARY.md](docs/reference/ULTRATHINK_COMPLETE_SUMMARY.md)** - Complete analysis
+
+---
+
+## ⚡ Quick Start
+
+### 1. Install Dependencies
+```bash
 pip install eegdash braindecode s3fs boto3 mne pandas torch
+```
 
-# 2. Test data loading
-python data/official_dataset_example.py
+### 2. Test the Pipeline (5 minutes)
+```bash
+python train.py -c 1 -o -m --max 5 -e 3
+```
+**Verify**: Should load ~10 subjects and start training
 
-# 3. Train models
-python train.py --challenge 1 --use_official --max_subjects 100 --epochs 100
-python train.py --challenge 2 --use_official --max_subjects 100 --epochs 100
+### 3. Train on ALL Data (12-24 hours)
+```bash
+# Challenge 1
+python train.py -c 1 -o -e 100
 
-# 4. Create submission
+# Challenge 2
+python train.py -c 2 -o -e 100
+```
+**Note**: Streams ALL 3,387 subjects from R1-R11 + NC automatically
+
+### 4. Create Submission
+```bash
 python create_submission.py \
   --model_c1 checkpoints/c1_best.pth \
   --model_c2 checkpoints/c2_best.pth
-
-# 5. Submit to Codabench!
 ```
 
-**Expected:** Beat current best (1.14), aim for 0.95-1.00!
+### 5. Submit to Codabench
+Upload ZIP to: https://www.codabench.org/competitions/9975/
+
+---
+
+## 🎯 Training Commands
+
+### Quick Test (Mini dataset)
+```bash
+python train.py -c 1 -o -m --max 5 -e 3
+```
+**Uses**: Small mini subset (~5 minutes)
+
+### Medium Training (100 subjects)
+```bash
+python train.py -c 1 -o --max 100 -e 50
+```
+**Uses**: 100 subjects from full dataset (~2 hours)
+
+### Full Training (ALL 3,387 subjects)
+```bash
+python train.py -c 1 -o -e 100
+```
+**Uses**: Complete competition dataset (~12-24 hours)
+
+**Key flags**:
+- `-c 1` or `-c 2`: Challenge number
+- `-o`: Use official dataset (streams from S3)
+- `-m`: Mini mode (small subset for testing)
+- `--max N`: Limit to N subjects
+- `-e N`: Number of epochs
+- NO `-m` and NO `--max` = uses ALL 3,387 subjects!
 
 ---
 
@@ -38,198 +115,229 @@ python create_submission.py \
 
 ```
 BCI/
-├── README.md                    # This file
-├── train.py                     # Main training script
-├── create_submission.py         # Create submission ZIP
+├── 📄 Core Scripts
+│   ├── train.py                           # Main training
+│   ├── train_kfold.py                     # K-Fold CV
+│   ├── create_submission.py               # Single model submission
+│   └── create_ensemble_submission.py      # Ensemble submission
 │
-├── models/
-│   └── eegnet.py               # EEGNeX model (proven 1.14 score)
+├── 📚 Documentation
+│   ├── START_HERE_MASTER.md               # Master guide
+│   ├── README.md                          # This file
+│   └── docs/
+│       ├── INDEX.md                       # Complete doc index
+│       ├── guides/                        # How-to guides
+│       ├── strategy/                      # Strategic planning
+│       ├── strategies/                    # Implementation strategies
+│       └── reference/                     # Reference docs
 │
-├── data/
-│   ├── official_dataset_example.py   # Official EEGChallengeDataset wrapper
-│   ├── streaming_dataset.py          # Custom S3 streaming
-│   └── behavioral_streaming.py       # BIDS behavioral data loader
+├── 📂 Implementation
+│   ├── models/                            # Model architectures
+│   │   └── eegnet.py                      # EEGNeX model
+│   ├── data/                              # Data loaders
+│   │   └── official_dataset_example.py    # Official dataset loader
+│   ├── utils/                             # Utilities
+│   │   └── metrics.py                     # 7 comprehensive metrics
+│   └── scripts/                           # Helper scripts
+│       ├── run_exploration_streaming.sh   # Run experiments
+│       └── compare_exploration.py         # Analyze results
 │
-├── scripts/
-│   └── test_s3_training.py     # Test S3 streaming pipeline
-│
-├── docs/
-│   ├── README.md               # Documentation guide
-│   ├── QUICKSTART.md           # 5-minute getting started
-│   ├── READY_TO_TRAIN.md       # Complete setup guide
-│   ├── ULTRATHINK_SUMMARY.md   # Pipeline verification
-│   ├── INTEGRATION_GUIDE.md    # Data loader integration
-│   │
-│   └── strategies/             # Strategy guides
-│       ├── STRATEGY_SUMMARY.md      # Overview
-│       ├── TRAINING_STRATEGIES.md   # Training improvements
-│       ├── INFERENCE_STRATEGIES.md  # Test-time improvements
-│       └── ENSEMBLE_STRATEGY.md     # Multi-model approaches
-│
-└── archive/                    # Old submissions & experiments
-```
-
----
-
-## 📚 Documentation
-
-### Start Here:
-1. **[docs/QUICKSTART.md](docs/QUICKSTART.md)** - Get started in 5 minutes
-2. **[docs/READY_TO_TRAIN.md](docs/READY_TO_TRAIN.md)** - Complete setup guide
-
-### Improve Your Score:
-1. **[docs/strategies/STRATEGY_SUMMARY.md](docs/strategies/STRATEGY_SUMMARY.md)** - All strategies overview
-2. **[docs/strategies/TRAINING_STRATEGIES.md](docs/strategies/TRAINING_STRATEGIES.md)** - Better training
-3. **[docs/strategies/INFERENCE_STRATEGIES.md](docs/strategies/INFERENCE_STRATEGIES.md)** - Test-time tricks
-4. **[docs/strategies/ENSEMBLE_STRATEGY.md](docs/strategies/ENSEMBLE_STRATEGY.md)** - Multi-model approach
-
----
-
-## 🎯 Training Commands
-
-### Quick Test (10 subjects, 20 epochs):
-```bash
-python train.py --challenge 1 --use_official --official_mini \
-  --max_subjects 10 --epochs 20
-```
-
-### Full Training (100 subjects, 100 epochs):
-```bash
-python train.py --challenge 1 --use_official \
-  --max_subjects 100 --epochs 100 --batch_size 32 --lr 0.001
-```
-
-### With Custom S3 Streaming:
-```bash
-python train.py --challenge 1 \
-  --data_path s3://nmdatasets/NeurIPS2025/R1_mini_L100_bdf \
-  --use_streaming --max_subjects 100 --epochs 100
+└── 📂 Auto-Generated (during training)
+    ├── checkpoints/                       # Trained models
+    ├── checkpoints_kfold/                 # K-Fold models
+    ├── results/                           # Training results
+    ├── experiments/                       # Experiment logs
+    ├── submissions/                       # Generated ZIPs
+    └── data_cache/                        # Cached metadata
 ```
 
 ---
 
 ## 📊 Model Architecture
 
-**EEGNeX** - Proven architecture (Sub 3: 1.14 score)
+**EEGNeX** (Temporal → Spatial → Feature convolutions):
+- **Input**: 129 channels × 200 timepoints (2 seconds @ 100 Hz)
+- **Temporal Conv**: Extract temporal patterns (64 kernel)
+- **Spatial Conv**: Depthwise spatial filtering (129 channels → 16 features)
+- **Separable Conv**: Feature refinement
+- **Classifier**: Sigmoid-inside design for [0,1] output
 
+**Parameters**: ~157k
+**Training Time**: ~1-2 sec/batch (on GPU)
+
+---
+
+## 🎯 Competition Strategy
+
+### Week 1: Foundation ✅ (DONE)
+- [x] Setup ALL data streaming (3,387 subjects)
+- [x] Implement subject-wise validation
+- [x] Add comprehensive metrics
+- [x] Create frameworks
+
+### Week 2: Exploration (This Week)
+- [ ] Run baseline training
+- [ ] Test 10 exploration experiments
+- [ ] Find best hyperparameters
+- **Target**: Beat 1.14, reach ~1.05 NRMSE
+
+### Week 3: Optimization
+- [ ] Train on full dataset with best params
+- [ ] Implement data augmentation
+- [ ] Try architecture variants
+- **Target**: Reach ~1.00 NRMSE
+
+### Week 4: Ensemble
+- [ ] Train 5 models (different seeds)
+- [ ] K-Fold cross-validation
+- [ ] Create ensemble submission
+- **Target**: Beat SOTA (0.978), reach ~0.95 NRMSE
+
+### Week 5+: Advanced
+- [ ] Test-Time Augmentation
+- [ ] Pseudo-labeling
+- [ ] Multi-task learning
+- **Target**: Top 3 on leaderboard (<0.90 NRMSE)
+
+See [docs/strategy/FUTURE_STRATEGY_ROADMAP.md](docs/strategy/FUTURE_STRATEGY_ROADMAP.md) for complete roadmap.
+
+---
+
+## ✨ Key Features
+
+### Data:
+- ✅ Streams ALL 3,387 subjects from S3 (R1-R11 + NC)
+- ✅ Subject-wise splitting (prevents data leakage)
+- ✅ Multiple split strategies (train/val, train/val/test, K-fold)
+- ✅ No manual S3 configuration needed
+
+### Training:
+- ✅ Validation during training
+- ✅ Best model checkpointing (by validation NRMSE)
+- ✅ 7 comprehensive metrics tracked
+- ✅ All experiments logged automatically
+
+### Submission:
+- ✅ Single model submission
+- ✅ Ensemble submission (multiple models)
+- ✅ Verified format (matches competition requirements)
+
+### Strategy:
+- ✅ 10 exploration experiments ready
+- ✅ K-Fold CV support
+- ✅ Ensemble methods implemented
+- ✅ Complete roadmap to beat SOTA
+
+---
+
+## 🔍 Verification
+
+When training, verify these outputs:
+
+### ✅ Data Loading:
 ```
-Input: (batch, 129 channels, 200 timepoints)
-  ↓
-Temporal Conv (129 → 64)
-  ↓
-Spatial Conv (64 → 32)
-  ↓
-Feature Conv (32 → 16)
-  ↓
-Global Pooling
-  ↓
-Classifier (sigmoid-inside for C1)
-  ↓
-Output: (batch, 1)
+📦 Loading EEGChallengeDataset
+   Release: all (ALL RELEASES - 3,387 subjects)  ← Must say "all"
+   Mini: False 🌐 (FULL dataset)                 ← Must say "False"
+   Unique subjects: 3387                         ← Must be ~3387
 ```
 
-**Key innovation:** Sigmoid INSIDE classifier architecture (not in forward)
+### ✅ Training Progress:
+```
+Epoch 1/100
+  Train loss: 0.1234
+  Val NRMSE: 1.0234 ⭐ (Competition Metric)      ← Should decrease
+  Val Pearson: 0.4567
+  Val R²: 0.3456
+  ✅ Best model saved!
+```
+
+### ✅ Submission Created:
+```
+✅ Submission created: YYYYMMDD_HHMM_trained_submission.zip
+   Size: 15.3 MB
+   Contents: submission.py, c1_weights.pth, c2_weights.pth
+```
 
 ---
 
-## 🔍 Competition Details
+## 🆘 Troubleshooting
 
-- **Challenge 1 (30%):** Predict response time (regression)
-- **Challenge 2 (70%):** Predict externalizing factor (regression)
-- **Metric:** Normalized RMSE (lower is better)
-- **Overall Score:** 0.3 × C1_NRMSE + 0.7 × C2_NRMSE
+### Issue: Only loading 10 subjects
+**Fix**: Remove `-m` flag (that's mini mode)
 
-**Current Scores:**
-- Your best: 1.14 (C1: 1.45, C2: 1.01)
-- SOTA: 0.978 (C1: 0.928, C2: 1.0)
-- Top 3: ~0.988
+### Issue: "eegdash not installed"
+**Fix**: `pip install eegdash braindecode s3fs boto3 mne`
 
----
+### Issue: Validation NRMSE increasing
+**Fix**: Increase dropout, add regularization
 
-## ✅ What's Working
+### Issue: Training too slow
+**Fix**: Reduce `--max` subjects for testing, or use GPU
 
-- ✅ EEGNeX architecture (Sub 3 = 1.14)
-- ✅ Sigmoid-inside-classifier
-- ✅ Output scaling [0.88, 1.12] for C1
-- ✅ S3 streaming (no download needed)
-- ✅ Both official & custom data loaders ready
-- ✅ Bandpass filter (0.5-50 Hz) implemented
+See [docs/guides/DATA_SETUP.md](docs/guides/DATA_SETUP.md) for complete troubleshooting.
 
 ---
 
-## 🚨 Critical Fixes Applied
+## 📊 Expected Performance
 
-1. ✅ **Bandpass filter** added to custom loader (0.5-50 Hz)
-2. ✅ **S3 paths** corrected (`s3://nmdatasets/NeurIPS2025/...`)
-3. ✅ **Behavioral targets** loaded from real BIDS format
-4. ✅ **Training pipeline** verified end-to-end
-
----
-
-## 🎯 Next Steps
-
-### Today:
-1. Transfer code to remote server
-2. Install packages
-3. Test data loading
-4. Quick training test (5-10 subjects, 3-5 epochs)
-
-### This Week:
-1. Train baseline (50-100 subjects, 50-100 epochs)
-2. Submit → Beat 1.14
-3. Add inference improvements (TTA, clipping)
-4. Submit → Aim for <1.0
-
-### Next Week:
-1. Hyperparameter tuning
-2. 3-model ensemble
-3. Submit → Beat SOTA (0.978)
+| Stage | NRMSE | Time | vs SOTA |
+|-------|-------|------|---------|
+| Baseline (100 subj) | ~1.10 | 2 hrs | +12.5% |
+| Full training | ~1.05 | 24 hrs | +7.4% |
+| Optimized | ~1.00 | 24 hrs | +2.2% |
+| Ensemble (5 models) | ~0.95 | 5 days | **-2.9% (Beat!)** |
+| Advanced | <0.90 | 2 weeks | **-8.0%** 🏆 |
 
 ---
 
-## 📝 Useful Commands
+## 📝 Citation
 
-### Test Pipeline:
+```bibtex
+@misc{eeg2025challenge,
+  title={NeurIPS 2025 EEG Foundation Challenge},
+  author={EEG Challenge Organizers},
+  year={2025},
+  url={https://eeg2025.github.io/}
+}
+```
+
+---
+
+## 🔗 Links
+
+- **Competition**: https://www.codabench.org/competitions/9975/
+- **Website**: https://eeg2025.github.io/
+- **Leaderboard**: https://www.codabench.org/competitions/9975/#/results
+
+---
+
+## 📞 Quick Reference
+
 ```bash
-python data/official_dataset_example.py
-python scripts/test_s3_training.py
-```
+# Quick test (5 min)
+python train.py -c 1 -o -m --max 5 -e 3
 
-### Train Both Challenges:
-```bash
-python train.py --challenge 1 --use_official --max_subjects 100 --epochs 100
-python train.py --challenge 2 --use_official --max_subjects 100 --epochs 100
-```
+# Full training (12-24 hrs)
+python train.py -c 1 -o -e 100
+python train.py -c 2 -o -e 100
 
-### Create Submission:
-```bash
+# Create submission
 python create_submission.py \
   --model_c1 checkpoints/c1_best.pth \
   --model_c2 checkpoints/c2_best.pth
+
+# K-Fold CV (for ensemble)
+python train_kfold.py -c 1 -o -e 150 --n_folds 5
+
+# Ensemble submission
+python create_ensemble_submission.py \
+  --models checkpoints_kfold/c1_*.pth \
+  --method weighted
 ```
 
 ---
 
-## 🏆 Goal
+**Ready to compete!** Start with [START_HERE_MASTER.md](START_HERE_MASTER.md) 🚀
 
-**Beat SOTA (0.978) in 1-2 weeks, aim for top 3!**
-
-Path:
-- 1.14 (current) → Train properly
-- → 0.98 (more data/epochs)
-- → 0.95 (+ inference strategies)
-- → 0.90 (+ ensemble)
-- → **Top 3!** 🥇
-
----
-
-## 📞 Resources
-
-- **Competition:** https://eeg2025.github.io
-- **Leaderboard:** https://www.codabench.org/competitions/9975/
-- **Docs:** [docs/README.md](docs/README.md)
-- **Strategies:** [docs/strategies/](docs/strategies/)
-
----
-
-**Let's beat SOTA!** 🚀
+**Last Updated**: 2024-11-15
