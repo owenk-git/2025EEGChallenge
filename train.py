@@ -18,6 +18,8 @@ import torch.nn as nn
 import torch.optim as optim
 from pathlib import Path
 from tqdm import tqdm
+import json
+from datetime import datetime
 
 from models.eegnet import create_model
 from data.dataset import create_dataloader
@@ -29,6 +31,50 @@ try:
     OFFICIAL_AVAILABLE = True
 except ImportError:
     OFFICIAL_AVAILABLE = False
+
+
+def log_experiment(args, final_val_loss, best_epoch):
+    """Log experiment configuration and results"""
+    if args.exp_num is None:
+        return
+
+    exp_dir = Path("experiments")
+    exp_dir.mkdir(exist_ok=True)
+
+    # Create experiment entry
+    exp_entry = {
+        "exp_num": args.exp_num,
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "challenge": args.challenge,
+        "config": {
+            "epochs": args.epochs,
+            "batch_size": args.batch_size,
+            "lr": args.lr,
+            "dropout": args.dropout,
+            "max_subjects": args.max_subjects,
+            "use_official": args.use_official,
+            "official_mini": args.official_mini if args.use_official else None,
+        },
+        "results": {
+            "final_val_loss": round(final_val_loss, 4),
+            "best_epoch": best_epoch,
+        }
+    }
+
+    # Append to JSON log
+    json_log = exp_dir / "experiments.json"
+    if json_log.exists():
+        with open(json_log, 'r') as f:
+            experiments = json.load(f)
+    else:
+        experiments = []
+
+    experiments.append(exp_entry)
+
+    with open(json_log, 'w') as f:
+        json.dump(experiments, f, indent=2)
+
+    print(f"\n✅ Experiment #{args.exp_num} logged to {json_log}")
 
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
@@ -178,6 +224,7 @@ def main(args):
     print("="*70)
 
     best_loss = float('inf')
+    best_epoch = 0
     checkpoint_dir = Path(args.checkpoint_dir)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
@@ -194,6 +241,7 @@ def main(args):
         # Save best model
         if train_loss < best_loss:
             best_loss = train_loss
+            best_epoch = epoch
             checkpoint_path = checkpoint_dir / f"c{args.challenge}_best.pth"
             torch.save({
                 'epoch': epoch,
@@ -218,6 +266,9 @@ def main(args):
     print(f"📁 Model saved to: {checkpoint_dir}/c{args.challenge}_best.pth")
     print("="*70)
 
+    # Log experiment
+    log_experiment(args, best_loss, best_epoch)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train EEG Challenge model")
@@ -232,13 +283,13 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--use_official', action='store_true',
                         help='Use official EEGChallengeDataset (recommended)')
     parser.add_argument('--task', '--official_task', type=str, default='contrastChangeDetection',
-                        help='Task name for official dataset')
+                        dest='official_task', help='Task name for official dataset')
     parser.add_argument('-m', '--official_mini', action='store_true',
                         help='Use mini dataset (faster for testing)')
 
     # Model args
     parser.add_argument('--drop', '--dropout', type=float, default=0.20,
-                        help='Dropout rate')
+                        dest='dropout', help='Dropout rate')
 
     # Training args
     parser.add_argument('-e', '--epochs', type=int, default=50,
@@ -252,15 +303,19 @@ if __name__ == "__main__":
 
     # Checkpoint args
     parser.add_argument('--ckpt', '--checkpoint_dir', type=str, default='./checkpoints',
-                        help='Directory to save checkpoints')
+                        dest='checkpoint_dir', help='Directory to save checkpoints')
     parser.add_argument('--save', '--save_every', type=int, default=10,
-                        help='Save checkpoint every N epochs')
+                        dest='save_every', help='Save checkpoint every N epochs')
 
     # Streaming args
     parser.add_argument('-s', '--use_streaming', action='store_true',
                         help='Use S3 streaming (no download)')
     parser.add_argument('--max', '--max_subjects', type=int, default=None,
-                        help='Maximum number of subjects to use (for efficiency)')
+                        dest='max_subjects', help='Maximum number of subjects to use (for efficiency)')
+
+    # Experiment tracking
+    parser.add_argument('--num', '--exp_num', type=int, default=None,
+                        dest='exp_num', help='Experiment number for tracking (see experiments/EXPERIMENT_LOG.md)')
 
     args = parser.parse_args()
     main(args)
