@@ -26,6 +26,9 @@ except ImportError:
     S3_AVAILABLE = False
     print("⚠️  s3fs not installed. Install with: pip install s3fs boto3")
 
+# Import behavioral streaming
+from .behavioral_streaming import get_behavioral_streamer
+
 
 class StreamingHBNDataset(Dataset):
     """
@@ -50,7 +53,7 @@ class StreamingHBNDataset(Dataset):
 
     def __init__(self, data_source, challenge='c1', max_subjects=None,
                  use_cache=True, cache_dir='./data_cache',
-                 target_sfreq=100):
+                 target_sfreq=100, use_synthetic_targets=True):
 
         self.data_source = data_source
         self.challenge = challenge
@@ -62,6 +65,12 @@ class StreamingHBNDataset(Dataset):
         # Create cache directory
         if use_cache:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize behavioral data streamer
+        self.behavioral_streamer = get_behavioral_streamer(
+            use_s3=True,
+            use_synthetic=use_synthetic_targets
+        )
 
         # Determine data source type
         self.is_s3 = isinstance(data_source, str) and data_source.startswith('s3://')
@@ -168,6 +177,25 @@ class StreamingHBNDataset(Dataset):
             # Return dummy data on error
             return None
 
+    def _extract_subject_id(self, file_path):
+        """
+        Extract subject ID from file path
+
+        Examples:
+            /path/sub-NDARPG836PWJ/eeg/file.bdf → sub-NDARPG836PWJ
+            s3://bucket/sub-ABCDEFG/eeg/file.set → sub-ABCDEFG
+        """
+        path_str = str(file_path)
+
+        # Look for pattern like "sub-XXXXXXX"
+        import re
+        match = re.search(r'(sub-[A-Z0-9]+)', path_str)
+        if match:
+            return match.group(1)
+
+        # Fallback: return a generic ID
+        return "sub-UNKNOWN"
+
     def __len__(self):
         return len(self.files)
 
@@ -216,11 +244,13 @@ class StreamingHBNDataset(Dataset):
             # Convert to tensor
             data = torch.from_numpy(data).float()
 
-            # Target (placeholder - will need behavioral data)
-            if self.challenge == 'c1':
-                target = torch.tensor([1.0])
-            else:
-                target = torch.tensor([0.0])
+            # Get real behavioral target from subject ID
+            # Extract subject ID from file path
+            subject_id = self._extract_subject_id(file_path)
+
+            # Get target from behavioral streamer
+            target_value = self.behavioral_streamer.get_target(subject_id, self.challenge)
+            target = torch.tensor([target_value], dtype=torch.float32)
 
             return data, target
 
