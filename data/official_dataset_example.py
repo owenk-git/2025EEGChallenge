@@ -155,6 +155,11 @@ class OfficialEEGDataset(Dataset):
             elif 'rt' in subject_info:
                 target_value = subject_info['rt']
             else:
+                # Debug: print available columns once
+                if idx == 0:
+                    print(f"\n⚠️  WARNING: Could not find RT column for Challenge 1")
+                    print(f"Available columns: {list(subject_info.index)}")
+                    print(f"Sample row: {subject_info.to_dict()}\n")
                 # Fallback: use placeholder
                 target_value = 0.5
         else:
