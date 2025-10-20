@@ -112,6 +112,15 @@ class OfficialEEGDataset(Dataset):
         else:
             self.valid_indices = list(range(len(self.eeg_dataset.datasets)))
 
+        # Filter out recordings with NaN targets for C2
+        if challenge == 'c2' and 'externalizing' in self.eeg_dataset.description.columns:
+            valid_mask = self.eeg_dataset.description.iloc[self.valid_indices]['externalizing'].notna()
+            original_count = len(self.valid_indices)
+            self.valid_indices = [idx for idx, valid in zip(self.valid_indices, valid_mask) if valid]
+            filtered_count = original_count - len(self.valid_indices)
+            if filtered_count > 0:
+                print(f"   Filtered {filtered_count} recordings with NaN externalizing values")
+
         print(f"   Using {len(self.valid_indices)} recordings")
 
         # Note: Behavioral targets (response time, externalizing) are automatically
@@ -181,6 +190,9 @@ class OfficialEEGDataset(Dataset):
             else:
                 # Challenge 2: Externalizing factor
                 target_value = subject_info.get('externalizing', 0.0)
+                # Safety check for NaN (should be filtered out already)
+                if np.isnan(target_value):
+                    target_value = 0.0
 
         # Return as (1,) shaped tensor to match model output
         target = torch.tensor([float(target_value)], dtype=torch.float32)
