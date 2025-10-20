@@ -145,38 +145,36 @@ class OfficialEEGDataset(Dataset):
         # Don't add extra dimension - DataLoader will batch automatically
         data = torch.tensor(eeg_data, dtype=torch.float32)
 
-        # Get behavioral target from dataset description
-        subject_info = self.eeg_dataset.description.iloc[actual_idx]
+        # Get behavioral target
+        # The official dataset provides targets through the .y attribute
+        # or we need to extract from events/annotations in the Raw object
 
-        if self.challenge == 'c1':
-            # Challenge 1: Response time prediction
-            # Try different possible column names
-            if 'RT' in subject_info:
-                target_value = subject_info['RT']
-            elif 'response_time' in subject_info:
-                target_value = subject_info['response_time']
-            elif 'rt' in subject_info:
-                target_value = subject_info['rt']
-            else:
-                # Debug: print available columns once
-                if idx == 0:
-                    print(f"\n⚠️  WARNING: Could not find RT column for Challenge 1")
-                    print(f"Available columns: {list(subject_info.index)}")
-                    print(f"Sample row: {subject_info.to_dict()}\n")
-                # Fallback: use placeholder
-                target_value = 0.5
+        # Try to get target from the dataset's target labels if available
+        if hasattr(self.eeg_dataset, 'y') and self.eeg_dataset.y is not None:
+            target_value = self.eeg_dataset.y[actual_idx]
         else:
-            # Challenge 2: Externalizing factor
-            if 'externalizing' in subject_info:
-                target_value = subject_info['externalizing']
-            elif 'Externalizing' in subject_info:
-                target_value = subject_info['Externalizing']
+            # Get from description table
+            subject_info = self.eeg_dataset.description.iloc[actual_idx]
+
+            if self.challenge == 'c1':
+                # Challenge 1: Response time prediction
+                # Extract from events or annotations in the raw data
+                # For now, use normalized age as proxy (temporary)
+                # TODO: Need to extract actual RT from task events
+                if idx == 0:
+                    print(f"\n⚠️  WARNING: Using age as proxy for RT (need to implement proper RT extraction)")
+                    print(f"Challenge 1 requires extracting RT from task events in the Raw object\n")
+
+                # Normalize age to 0-1 range (ages typically 5-22)
+                age = subject_info.get('age', 15.0)
+                target_value = (age - 5.0) / (22.0 - 5.0)
+                target_value = np.clip(target_value, 0.0, 1.0)
             else:
-                # Fallback: use placeholder
-                target_value = 0.0
+                # Challenge 2: Externalizing factor
+                target_value = subject_info.get('externalizing', 0.0)
 
         # Return as (1,) shaped tensor to match model output
-        target = torch.tensor([target_value], dtype=torch.float32)
+        target = torch.tensor([float(target_value)], dtype=torch.float32)
 
         return data, target
 
