@@ -190,6 +190,8 @@ def main(args):
     print(f"\n📊 Loading data...")
 
     # Choose data loading approach
+    val_loader = None  # Initialize validation loader
+
     if args.use_official:
         # Use official EEGChallengeDataset
         if not OFFICIAL_AVAILABLE:
@@ -203,14 +205,28 @@ def main(args):
         if args.max_subjects:
             print(f"   Limiting to {args.max_subjects} subjects")
 
-        train_loader = create_official_dataloader(
-            task=args.official_task,
-            challenge=f'c{args.challenge}',
-            batch_size=args.batch_size,
-            mini=args.official_mini,
-            max_subjects=args.max_subjects,
-            num_workers=args.num_workers
-        )
+        # Use train/val split unless disabled
+        if not args.no_val:
+            print(f"   Validation split: {args.val_split:.1%}")
+            train_loader, val_loader = create_official_dataloaders_with_split(
+                task=args.official_task,
+                challenge=f'c{args.challenge}',
+                batch_size=args.batch_size,
+                mini=args.official_mini,
+                max_subjects=args.max_subjects,
+                num_workers=args.num_workers,
+                val_split=args.val_split
+            )
+        else:
+            print(f"   ⚠️  No validation split (--no_val)")
+            train_loader = create_official_dataloader(
+                task=args.official_task,
+                challenge=f'c{args.challenge}',
+                batch_size=args.batch_size,
+                mini=args.official_mini,
+                max_subjects=args.max_subjects,
+                num_workers=args.num_workers
+            )
 
     elif args.use_streaming or (args.data_path and args.data_path.startswith('s3://')):
         # Use custom S3 streaming
@@ -271,8 +287,13 @@ def main(args):
     print(f"\n🎯 Training for {args.epochs} epochs")
     print("="*70)
 
-    best_loss = float('inf')
+    # Track best validation metrics (use NRMSE for model selection)
+    best_nrmse = float('inf')
+    best_metrics = {}
     best_epoch = 0
+    best_predictions = None
+    best_targets = None
+
     checkpoint_dir = Path(args.checkpoint_dir)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
@@ -281,23 +302,57 @@ def main(args):
 
         # Train
         train_loss = train_epoch(model, train_loader, criterion, optimizer, device)
-        print(f"Train Loss: {train_loss:.4f}")
+        print(f"  Train Loss: {train_loss:.4f}")
 
-        # Update scheduler
-        scheduler.step(train_loss)
+        # Validate with metrics if validation set exists
+        if val_loader is not None:
+            val_loss, val_metrics, predictions, targets = validate_with_metrics(
+                model, val_loader, criterion, device
+            )
 
-        # Save best model
-        if train_loss < best_loss:
-            best_loss = train_loss
-            best_epoch = epoch
-            checkpoint_path = checkpoint_dir / f"c{args.challenge}_best.pth"
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': best_loss,
-            }, checkpoint_path)
-            print(f"✅ Saved best model (loss: {best_loss:.4f})")
+            print(f"  Val Loss:  {val_loss:.4f}")
+            print(f"  Val NRMSE: {val_metrics['nrmse']:.4f} ⭐ (Competition Metric)")
+            print(f"  Val RMSE:  {val_metrics['rmse']:.4f}")
+            print(f"  Val MAE:   {val_metrics['mae']:.4f}")
+
+            # Update scheduler based on validation loss
+            scheduler.step(val_loss)
+
+            # Save best model based on validation NRMSE
+            if val_metrics['nrmse'] < best_nrmse:
+                best_nrmse = val_metrics['nrmse']
+                best_metrics = val_metrics
+                best_epoch = epoch
+                best_predictions = predictions
+                best_targets = targets
+
+                checkpoint_path = checkpoint_dir / f"c{args.challenge}_best.pth"
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'val_nrmse': best_nrmse,
+                    'val_metrics': val_metrics,
+                }, checkpoint_path)
+                print(f"  ✅ Saved best model (NRMSE: {best_nrmse:.4f})")
+
+        else:
+            # No validation - use training loss (old behavior)
+            scheduler.step(train_loss)
+
+            if train_loss < best_nrmse:  # Reuse best_nrmse as best_loss
+                best_nrmse = train_loss
+                best_metrics = {'nrmse': train_loss}  # Dummy metrics
+                best_epoch = epoch
+
+                checkpoint_path = checkpoint_dir / f"c{args.challenge}_best.pth"
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': train_loss,
+                }, checkpoint_path)
+                print(f"  ✅ Saved best model (loss: {train_loss:.4f})")
 
         # Save checkpoint every N epochs
         if epoch % args.save_every == 0:
@@ -306,16 +361,39 @@ def main(args):
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'loss': train_loss,
+                'val_nrmse': val_metrics.get('nrmse', train_loss) if val_loader else train_loss,
             }, checkpoint_path)
 
     print("\n" + "="*70)
-    print(f"✅ Training complete! Best loss: {best_loss:.4f}")
+    if val_loader is not None:
+        print(f"✅ Training complete! Best val NRMSE: {best_nrmse:.4f} (epoch {best_epoch})")
+        print(f"   Best val RMSE: {best_metrics['rmse']:.4f}")
+        print(f"   Best val MAE:  {best_metrics['mae']:.4f}")
+    else:
+        print(f"✅ Training complete! Best train loss: {best_nrmse:.4f} (epoch {best_epoch})")
+
     print(f"📁 Model saved to: {checkpoint_dir}/c{args.challenge}_best.pth")
     print("="*70)
 
+    # Save predictions and results for analysis
+    if val_loader is not None and best_predictions is not None:
+        results_dir = Path("results")
+        if args.exp_num is not None:
+            results_dir = results_dir / f"exp_{args.exp_num}"
+        results_dir.mkdir(parents=True, exist_ok=True)
+
+        results_path = results_dir / f"c{args.challenge}_results.pt"
+        torch.save({
+            'predictions': best_predictions,
+            'targets': best_targets,
+            'metrics': best_metrics,
+            'best_epoch': best_epoch,
+            'config': vars(args),
+        }, results_path)
+        print(f"\n💾 Saved predictions and metrics to: {results_path}")
+
     # Log experiment
-    log_experiment(args, best_loss, best_epoch)
+    log_experiment(args, best_metrics, best_epoch)
 
 
 if __name__ == "__main__":
