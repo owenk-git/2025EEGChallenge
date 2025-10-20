@@ -223,43 +223,43 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train EEG Challenge model")
 
     # Data args
-    parser.add_argument('--data_path', type=str, default=None,
+    parser.add_argument('-d', '--data_path', type=str, default=None,
                         help='Path to BIDS dataset (for custom/local mode)')
-    parser.add_argument('--challenge', type=int, required=True, choices=[1, 2],
+    parser.add_argument('-c', '--challenge', type=int, required=True, choices=[1, 2],
                         help='Challenge number (1 or 2)')
 
     # Official dataset args
-    parser.add_argument('--use_official', action='store_true',
+    parser.add_argument('-o', '--use_official', action='store_true',
                         help='Use official EEGChallengeDataset (recommended)')
-    parser.add_argument('--official_task', type=str, default='contrastChangeDetection',
+    parser.add_argument('--task', '--official_task', type=str, default='contrastChangeDetection',
                         help='Task name for official dataset')
-    parser.add_argument('--official_mini', action='store_true',
+    parser.add_argument('-m', '--official_mini', action='store_true',
                         help='Use mini dataset (faster for testing)')
 
     # Model args
-    parser.add_argument('--dropout', type=float, default=0.20,
+    parser.add_argument('--drop', '--dropout', type=float, default=0.20,
                         help='Dropout rate')
 
     # Training args
-    parser.add_argument('--epochs', type=int, default=50,
+    parser.add_argument('-e', '--epochs', type=int, default=50,
                         help='Number of epochs')
-    parser.add_argument('--batch_size', type=int, default=32,
+    parser.add_argument('-b', '--batch_size', type=int, default=32,
                         help='Batch size')
     parser.add_argument('--lr', type=float, default=1e-3,
                         help='Learning rate')
-    parser.add_argument('--num_workers', type=int, default=4,
+    parser.add_argument('-w', '--num_workers', type=int, default=4,
                         help='Number of data loading workers')
 
     # Checkpoint args
-    parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints',
+    parser.add_argument('--ckpt', '--checkpoint_dir', type=str, default='./checkpoints',
                         help='Directory to save checkpoints')
-    parser.add_argument('--save_every', type=int, default=10,
+    parser.add_argument('--save', '--save_every', type=int, default=10,
                         help='Save checkpoint every N epochs')
 
     # Streaming args
-    parser.add_argument('--use_streaming', action='store_true',
+    parser.add_argument('-s', '--use_streaming', action='store_true',
                         help='Use S3 streaming (no download)')
-    parser.add_argument('--max_subjects', type=int, default=None,
+    parser.add_argument('--max', '--max_subjects', type=int, default=None,
                         help='Maximum number of subjects to use (for efficiency)')
 
     args = parser.parse_args()
