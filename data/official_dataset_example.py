@@ -87,6 +87,9 @@ class OfficialEEGDataset(Dataset):
         print(f"✅ Loaded {len(self.eeg_dataset.datasets)} recordings")
         print(f"   Unique subjects: {self.eeg_dataset.description['subject'].nunique()}")
 
+        # Debug: print available columns
+        print(f"   Available columns: {list(self.eeg_dataset.description.columns)}")
+
         # Apply max_subjects limit if specified
         if max_subjects is not None:
             unique_subjects = self.eeg_dataset.description['subject'].unique()[:max_subjects]
@@ -140,19 +143,32 @@ class OfficialEEGDataset(Dataset):
         data = torch.tensor(eeg_data, dtype=torch.float32)
 
         # Get behavioral target from dataset description
-        # (This is the key advantage - targets are automatically loaded!)
         subject_info = self.eeg_dataset.description.iloc[actual_idx]
 
         if self.challenge == 'c1':
-            # Challenge 1: Response time (normalized 0-1)
-            # The official dataset provides this - check column names
-            # For now, placeholder - need to verify exact column name
-            target_value = subject_info.get('response_time', 0.95)
+            # Challenge 1: Response time prediction
+            # Try different possible column names
+            if 'RT' in subject_info:
+                target_value = subject_info['RT']
+            elif 'response_time' in subject_info:
+                target_value = subject_info['response_time']
+            elif 'rt' in subject_info:
+                target_value = subject_info['rt']
+            else:
+                # Fallback: use placeholder
+                target_value = 0.5
         else:
-            # Challenge 2: Externalizing factor (centered around 0)
-            target_value = subject_info.get('externalizing', 0.0)
+            # Challenge 2: Externalizing factor
+            if 'externalizing' in subject_info:
+                target_value = subject_info['externalizing']
+            elif 'Externalizing' in subject_info:
+                target_value = subject_info['Externalizing']
+            else:
+                # Fallback: use placeholder
+                target_value = 0.0
 
-        target = torch.tensor(target_value, dtype=torch.float32)
+        # Return as (1,) shaped tensor to match model output
+        target = torch.tensor([target_value], dtype=torch.float32)
 
         return data, target
 
