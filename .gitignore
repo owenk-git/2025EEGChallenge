@@ -29,11 +29,11 @@ wheels/
 # VSCode
 .vscode/
 
-# Data
-data/
-*.bdf
-*.set
-*.fdt
+# Data files (but not data/ folder code)
+data/R*/
+data/*.bdf
+data/*.set
+data/*.fdt
 
 # Models & Checkpoints
 checkpoints/
