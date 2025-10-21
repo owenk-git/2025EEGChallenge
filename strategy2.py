@@ -213,12 +213,18 @@ def main():
 
     # Create model (larger than default)
     print(f"\n🧠 Creating LARGER model for Challenge {args.challenge}")
-    model = create_model(
-        challenge=f'c{args.challenge}',
-        device=device,
-        dropout=args.dropout,
-        output_range=(0.88, 1.12) if args.challenge == 1 else None
-    )
+
+    model_kwargs = {
+        'challenge': f'c{args.challenge}',
+        'device': device,
+        'dropout': args.dropout,
+    }
+
+    # Only add output_range for C1
+    if args.challenge == 1:
+        model_kwargs['output_range'] = (0.88, 1.12)
+
+    model = create_model(**model_kwargs)
 
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Parameters: {num_params:,}")
