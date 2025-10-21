@@ -22,6 +22,13 @@ except ImportError:
     EEGDASH_AVAILABLE = False
     print("⚠️  eegdash not installed. Run: pip install eegdash braindecode")
 
+# RT extraction
+try:
+    from data.rt_extractor import extract_response_time, normalize_rt
+    RT_EXTRACTOR_AVAILABLE = True
+except ImportError:
+    RT_EXTRACTOR_AVAILABLE = False
+
 
 class OfficialEEGDataset(Dataset):
     """
@@ -176,14 +183,15 @@ class OfficialEEGDataset(Dataset):
 
             if self.challenge == 'c1':
                 # Challenge 1: Response time prediction
-                # Extract from events or annotations in the raw data
-                # For now, use normalized age as proxy (temporary)
-                # TODO: Need to extract actual RT from task events
-
-                # Normalize age to 0-1 range (ages typically 5-22)
-                age = subject_info.get('age', 15.0)
-                target_value = (age - 5.0) / (22.0 - 5.0)
-                target_value = np.clip(target_value, 0.0, 1.0)
+                # Extract actual RT from task events in Raw object
+                if RT_EXTRACTOR_AVAILABLE:
+                    rt = extract_response_time(raw, method='mean', verbose=False)
+                    target_value = normalize_rt(rt, rt_min=0.2, rt_max=2.0)
+                else:
+                    # Fallback: use normalized age as proxy
+                    age = subject_info.get('age', 15.0)
+                    target_value = (age - 5.0) / (22.0 - 5.0)
+                    target_value = np.clip(target_value, 0.0, 1.0)
             else:
                 # Challenge 2: Externalizing factor
                 target_value = subject_info.get('externalizing', 0.0)
