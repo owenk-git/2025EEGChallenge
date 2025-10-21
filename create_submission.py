@@ -138,7 +138,7 @@ class Submission:
         # Load trained weights
         weights_path = self.model_path / "c1_weights.pth"
         if weights_path.exists():
-            checkpoint = torch.load(weights_path, map_location=self.device)
+            checkpoint = torch.load(weights_path, map_location=self.device, weights_only=False)
             model.load_state_dict(checkpoint['model_state_dict'])
             print(f"✅ Loaded trained weights from epoch {{checkpoint['epoch']}}")
         else:
@@ -164,7 +164,7 @@ class Submission:
         # Load trained weights
         weights_path = self.model_path / "c2_weights.pth"
         if weights_path.exists():
-            checkpoint = torch.load(weights_path, map_location=self.device)
+            checkpoint = torch.load(weights_path, map_location=self.device, weights_only=False)
             model.load_state_dict(checkpoint['model_state_dict'])
             print(f"✅ Loaded trained weights from epoch {{checkpoint['epoch']}}")
         else:
