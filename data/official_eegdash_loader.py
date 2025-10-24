@@ -154,11 +154,12 @@ class OfficialEEGDashDataset(Dataset):
                     from data.rt_extractor import extract_response_time
                     rt = extract_response_time(raw, method='mean', verbose=False)
                     if rt is not None:
-                        # Model outputs [0.5, 1.5] range
-                        # RT range is ~[1.2, 1.8]s
-                        # So just use RT directly! It's already in similar range
-                        target_value = rt
-                        # Clip to [0.5, 1.5] to match model output
+                        # Random weights got C1: 0.93 with outputs centered at ~1.0
+                        # Normalize RT to center at 1.0 too
+                        # RT stats from debug: mean=1.518, std=0.126, range=[1.228, 1.758]
+                        # Normalize to [0.5, 1.5] centered at 1.0
+                        rt_min, rt_max = 1.2, 1.8
+                        target_value = 0.5 + (rt - rt_min) / (rt_max - rt_min) * 1.0
                         target_value = np.clip(target_value, 0.5, 1.5)
                 except:
                     pass
