@@ -99,7 +99,7 @@ def main():
     parser.add_argument('-c', '--challenge', type=int, required=True, choices=[1, 2])
     parser.add_argument('-e', '--epochs', type=int, default=200)
     parser.add_argument('-b', '--batch_size', type=int, default=128)
-    parser.add_argument('--lr', type=float, default=0.0005)
+    parser.add_argument('--lr', type=float, default=0.0003)  # Lower LR for stability
     parser.add_argument('--dropout', type=float, default=0.20)
     parser.add_argument('-w', '--num_workers', type=int, default=8)
     parser.add_argument('--checkpoint_dir', type=str, default='checkpoints_official')
@@ -164,9 +164,10 @@ def main():
 
     # Output range for C1
     if args.challenge == 1:
-        # HYPOTHESIS: Targets are RAW RT in seconds (~1.2-1.8s)
-        # Model outputs sigmoid [0,1] scaled to this range
-        model_kwargs['output_range'] = (1.0, 2.0)  # Match raw RT range
+        # Targets are RAW RT in seconds (mean=1.518, range=[1.228, 1.758])
+        # Model outputs sigmoid [0,1] scaled to match RT distribution
+        # Use tighter range centered on actual RT statistics
+        model_kwargs['output_range'] = (1.2, 1.85)  # Match actual RT range more precisely
 
     model = create_model(**model_kwargs)
 
