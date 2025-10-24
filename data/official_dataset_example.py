@@ -186,7 +186,15 @@ class OfficialEEGDataset(Dataset):
                 # Extract actual RT from task events in Raw object
                 if RT_EXTRACTOR_AVAILABLE:
                     rt = extract_response_time(raw, method='mean', verbose=False)
-                    target_value = normalize_rt(rt, rt_min=0.2, rt_max=2.0)
+                    if rt is not None:
+                        target_value = normalize_rt(rt, rt_min=0.2, rt_max=2.0)
+                    else:
+                        # RT extraction failed - use fallback
+                        if idx == 0:
+                            print(f"\n⚠️  RT extraction failed, using age fallback\n")
+                        age = subject_info.get('age', 15.0)
+                        target_value = (age - 5.0) / (22.0 - 5.0)
+                        target_value = np.clip(target_value, 0.0, 1.0)
                 else:
                     # Fallback: use normalized age as proxy
                     age = subject_info.get('age', 15.0)
