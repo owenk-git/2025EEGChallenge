@@ -132,7 +132,7 @@ class Submission:
             n_times=n_times,
             challenge_name='c1',
             dropout=0.20,
-            output_range=(0.88, 1.12)
+            output_range=(0.5, 1.5)  # Match Oct 14 best submission scaling
         ).to(self.device)
 
         # Load trained weights
