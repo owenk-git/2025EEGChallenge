@@ -220,9 +220,9 @@ def main():
         'dropout': args.dropout,
     }
 
-    # Only add output_range for C1
+    # Only add output_range for C1 - match RT normalized range
     if args.challenge == 1:
-        model_kwargs['output_range'] = (0.88, 1.12)
+        model_kwargs['output_range'] = (0.0, 1.0)  # Match normalized RT range
 
     model = create_model(**model_kwargs)
 
