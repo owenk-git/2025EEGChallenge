@@ -103,6 +103,9 @@ def main():
     parser.add_argument('--loss', type=str, default='huber', choices=['mse', 'huber', 'mae'])
     parser.add_argument('--output_min', type=float, default=0.5)
     parser.add_argument('--output_max', type=float, default=1.5)
+    parser.add_argument('--rt_method', type=str, default='mean',
+                       choices=['mean', 'median', 'mode', 'p25', 'p75', 'trimmed_mean'],
+                       help='RT extraction method')
 
     args = parser.parse_args()
 
@@ -113,6 +116,7 @@ def main():
     print(f"Dropout: {args.dropout}")
     print(f"LR: {args.lr}")
     print(f"Output range: [{args.output_min}, {args.output_max}]")
+    print(f"RT method: {args.rt_method}")
     print("="*70)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -126,7 +130,8 @@ def main():
             batch_size=args.batch_size,
             mini=False,
             release="R11",
-            num_workers=args.num_workers
+            num_workers=args.num_workers,
+            rt_method=args.rt_method  # Pass RT method!
         )
     else:
         from data.official_dataset_example import create_official_dataloaders_with_split

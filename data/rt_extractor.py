@@ -104,7 +104,12 @@ def extract_response_time(raw, method='mean', verbose=False):
         rt = np.percentile(rts, 75)
     elif method == 'trimmed_mean':
         # Remove top and bottom 10%
-        rt = np.mean(sorted(rts)[int(len(rts)*0.1):int(len(rts)*0.9)])
+        if len(rts) < 5:
+            rt = np.median(rts)  # Fall back to median for small samples
+        else:
+            trim_count = max(1, int(len(rts) * 0.1))
+            sorted_rts = sorted(rts)
+            rt = np.mean(sorted_rts[trim_count:-trim_count] if trim_count > 0 else sorted_rts)
     else:
         rt = np.mean(rts)
 

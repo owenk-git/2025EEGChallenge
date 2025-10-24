@@ -44,7 +44,8 @@ class OfficialEEGDashDataset(Dataset):
         mini=False,
         epoch_length=2.0,
         sfreq=100,
-        n_channels=129
+        n_channels=129,
+        rt_method='mean'  # NEW: RT extraction method
     ):
         if not EEGDASH_AVAILABLE:
             raise ImportError("eegdash/braindecode required")
@@ -54,6 +55,7 @@ class OfficialEEGDashDataset(Dataset):
         self.sfreq = sfreq
         self.n_channels = n_channels
         self.n_times = int(epoch_length * sfreq)
+        self.rt_method = rt_method  # Store RT extraction method
 
         # Load dataset
         cache_path = Path(cache_dir).resolve()
@@ -152,7 +154,7 @@ class OfficialEEGDashDataset(Dataset):
             if target_value is None:
                 try:
                     from data.rt_extractor import extract_response_time
-                    rt = extract_response_time(raw, method='mean', verbose=False)
+                    rt = extract_response_time(raw, method=self.rt_method, verbose=False)
                     if rt is not None:
                         # Match best submission (C1: 0.93) which used output range [0.5, 1.5]
                         # Normalize RT [1.2, 1.8]s -> [0.5, 1.5] centered at 1.0
@@ -186,7 +188,8 @@ def create_official_eegdash_loaders(
     mini=False,
     release="R11",
     num_workers=4,
-    val_split=0.2
+    val_split=0.2,
+    rt_method='mean'  # NEW: RT extraction method
 ):
     """
     Create train/val loaders using OFFICIAL eegdash methods
@@ -197,7 +200,8 @@ def create_official_eegdash_loaders(
         task=task,
         challenge=challenge,
         release=release,
-        mini=mini
+        mini=mini,
+        rt_method=rt_method  # Pass RT method
     )
 
     # Subject-wise split
