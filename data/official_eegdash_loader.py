@@ -154,13 +154,11 @@ class OfficialEEGDashDataset(Dataset):
                     from data.rt_extractor import extract_response_time
                     rt = extract_response_time(raw, method='mean', verbose=False)
                     if rt is not None:
-                        # Random weights got C1: 0.93 with outputs centered at ~1.0
-                        # Normalize RT to center at 1.0 too
-                        # RT stats from debug: mean=1.518, std=0.126, range=[1.228, 1.758]
-                        # Normalize to [0.5, 1.5] centered at 1.0
-                        rt_min, rt_max = 1.2, 1.8
-                        target_value = 0.5 + (rt - rt_min) / (rt_max - rt_min) * 1.0
-                        target_value = np.clip(target_value, 0.5, 1.5)
+                        # HYPOTHESIS: Competition uses RAW reaction times (in seconds)
+                        # Random init outputs ~1.0, test RT might be ~1.0s mean
+                        # But our data has RT mean=1.518s
+                        # Try using raw RT values without normalization
+                        target_value = rt
                 except:
                     pass
 

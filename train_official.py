@@ -164,7 +164,9 @@ def main():
 
     # Output range for C1
     if args.challenge == 1:
-        model_kwargs['output_range'] = (0.5, 1.5)  # Match Oct 14 best submission
+        # HYPOTHESIS: Targets are RAW RT in seconds (~1.2-1.8s)
+        # Model outputs sigmoid [0,1] scaled to this range
+        model_kwargs['output_range'] = (1.0, 2.0)  # Match raw RT range
 
     model = create_model(**model_kwargs)
 
