@@ -19,7 +19,7 @@ def extract_response_time(raw, method='mean', verbose=False):
 
     Args:
         raw: MNE Raw object with annotations
-        method: 'mean', 'median', 'first' - how to aggregate multiple RTs
+        method: 'mean', 'median', 'first', 'mode', 'p25', 'p75', 'trimmed_mean' - how to aggregate
         verbose: Print debug info
 
     Returns:
@@ -86,13 +86,25 @@ def extract_response_time(raw, method='mean', verbose=False):
             print("⚠️  No valid RTs found")
         return None
 
-    # Aggregate RTs
+    # Aggregate RTs with multiple methods
     if method == 'mean':
         rt = np.mean(rts)
     elif method == 'median':
         rt = np.median(rts)
     elif method == 'first':
         rt = rts[0]
+    elif method == 'mode':
+        # Use histogram to find mode
+        counts, bins = np.histogram(rts, bins=10)
+        mode_idx = np.argmax(counts)
+        rt = (bins[mode_idx] + bins[mode_idx + 1]) / 2
+    elif method == 'p25':
+        rt = np.percentile(rts, 25)
+    elif method == 'p75':
+        rt = np.percentile(rts, 75)
+    elif method == 'trimmed_mean':
+        # Remove top and bottom 10%
+        rt = np.mean(sorted(rts)[int(len(rts)*0.1):int(len(rts)*0.9)])
     else:
         rt = np.mean(rts)
 
