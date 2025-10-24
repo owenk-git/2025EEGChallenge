@@ -187,7 +187,8 @@ class OfficialEEGDataset(Dataset):
                 if RT_EXTRACTOR_AVAILABLE:
                     rt = extract_response_time(raw, method='mean', verbose=False)
                     if rt is not None:
-                        target_value = normalize_rt(rt, rt_min=0.2, rt_max=2.0)
+                        # Use actual RT range from data: 1.0-2.0s gives better spread
+                        target_value = normalize_rt(rt, rt_min=1.0, rt_max=2.0)
                     else:
                         # RT extraction failed - use fallback
                         if idx == 0:

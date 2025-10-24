@@ -19,7 +19,19 @@ dataset = OfficialEEGDataset(
     max_subjects=10  # Just check first 10 subjects
 )
 
-print(f"\nChecking {len(dataset)} recordings...\n")
+# Check if dataset has built-in targets
+print(f"\n📊 Checking for built-in targets...")
+print(f"Dataset has .y attribute: {hasattr(dataset.eeg_dataset, 'y')}")
+if hasattr(dataset.eeg_dataset, 'y') and dataset.eeg_dataset.y is not None:
+    print(f"✅ Built-in targets found!")
+    print(f"   Shape: {dataset.eeg_dataset.y.shape}")
+    print(f"   Sample: {dataset.eeg_dataset.y[:10]}")
+    print(f"   Range: [{dataset.eeg_dataset.y.min():.3f}, {dataset.eeg_dataset.y.max():.3f}]")
+    print(f"\n⚠️  WE SHOULD USE BUILT-IN TARGETS INSTEAD OF RT EXTRACTION!\n")
+else:
+    print("No built-in targets, using RT extraction\n")
+
+print(f"Checking {len(dataset)} recordings...\n")
 
 rt_values = []
 failed_count = 0
