@@ -180,7 +180,7 @@ def main():
         mode='min',
         factor=0.5,
         patience=3,
-        verbose=True
+        
     )
 
     # Training loop with early stopping
