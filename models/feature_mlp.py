@@ -91,8 +91,10 @@ def extract_band_power_torch(eeg_data, sfreq=100):
         for i in range(len(bands)):
             features.append(features[i*3] / total_power)
     else:
-        features.extend([torch.tensor(0.0, device=device)] * len(bands))
+        features.extend([torch.tensor(0.0, device=device, dtype=torch.float32)] * len(bands))
 
+    # Ensure all features are on the same device
+    features = [f.to(device) if isinstance(f, torch.Tensor) else torch.tensor(f, device=device, dtype=torch.float32) for f in features]
     return torch.stack(features)
 
 
@@ -131,6 +133,8 @@ def extract_spectral_features_torch(eeg_data, sfreq=100):
     peak_freqs = torch.stack(peak_freqs)
     spectral_centroids = torch.stack(spectral_centroids)
 
+    # Ensure all on same device
+    device = eeg_data.device
     features = torch.stack([
         spectral_entropies.mean(),
         spectral_entropies.std(),
@@ -138,7 +142,7 @@ def extract_spectral_features_torch(eeg_data, sfreq=100):
         peak_freqs.std(),
         spectral_centroids.mean(),
         spectral_centroids.std()
-    ])
+    ]).to(device)
 
     return features
 
@@ -146,6 +150,7 @@ def extract_spectral_features_torch(eeg_data, sfreq=100):
 def extract_time_features_torch(eeg_data):
     """Extract time-domain features using PyTorch"""
     n_channels, n_times = eeg_data.shape
+    device = eeg_data.device
 
     # Basic statistics
     features = [
@@ -200,6 +205,8 @@ def extract_time_features_torch(eeg_data):
         zero_crossings.std()
     ])
 
+    # Ensure all features are on the same device
+    features = [f.to(device) if isinstance(f, torch.Tensor) else torch.tensor(f, device=device, dtype=torch.float32) for f in features]
     return torch.stack(features)
 
 
