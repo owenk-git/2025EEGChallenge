@@ -45,6 +45,10 @@ def get_model(model_name, challenge, device):
             output_range = (-3, 3)
         return create_transformer(challenge=f'c{challenge}', device=device, output_range=output_range)
 
+    elif model_name == 'erp_mlp':
+        from models.erp_features_mlp import create_erp_mlp
+        return create_erp_mlp(challenge=f'c{challenge}', device=device)
+
     else:
         raise ValueError(f"Unknown model: {model_name}")
 
@@ -110,7 +114,7 @@ def main():
     parser = argparse.ArgumentParser(description="Universal Training Script")
 
     parser.add_argument('--model', type=str, required=True,
-                       choices=['feature_mlp', 'eegnex_improved', 'cnn_ensemble', 'transformer'])
+                       choices=['feature_mlp', 'eegnex_improved', 'cnn_ensemble', 'transformer', 'erp_mlp'])
     parser.add_argument('--challenge', type=int, required=True, choices=[1, 2])
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=32)
