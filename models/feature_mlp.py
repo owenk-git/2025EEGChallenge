@@ -71,8 +71,16 @@ def extract_band_power_torch(eeg_data, sfreq=100):
             idx_band = (freqs >= low) & (freqs <= high)
 
             if idx_band.sum() > 0:
-                # Trapezoidal integration
-                band_power = torch.trapz(psd[idx_band], freqs[idx_band])
+                # Manual trapezoidal integration (torch.trapz may not support device)
+                psd_band = psd[idx_band]
+                freq_band = freqs[idx_band]
+                # Trapz: sum((y[i] + y[i+1]) * (x[i+1] - x[i]) / 2)
+                if len(freq_band) > 1:
+                    dx = freq_band[1:] - freq_band[:-1]
+                    y_avg = (psd_band[1:] + psd_band[:-1]) / 2
+                    band_power = (y_avg * dx).sum()
+                else:
+                    band_power = psd_band[0] if len(psd_band) > 0 else torch.tensor(0.0, device=device)
                 band_powers.append(band_power)
 
         if len(band_powers) > 0:
