@@ -147,6 +147,13 @@ def main():
 
     # Create Transformer model
     print(f"\n🤖 Creating Transformer model...")
+
+    # Set output range based on challenge
+    if args.challenge == 1:
+        output_range = (0.5, 1.5)  # C1: Reaction time normalized
+    else:
+        output_range = (-3, 3)  # C2: Externalizing factor (z-score range)
+
     model = create_transformer(
         challenge=f'c{args.challenge}',
         device=device,
@@ -155,7 +162,7 @@ def main():
         n_heads=args.n_heads,
         patch_size=args.patch_size,
         dropout=args.dropout,
-        output_range=(0.5, 1.5) if args.challenge == 1 else None
+        output_range=output_range
     )
 
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
