@@ -138,11 +138,18 @@ def main():
 
     # Create model
     print(f"\n🔄 Creating pretrained model...")
+
+    # Set output range based on challenge
+    if args.challenge == 1:
+        output_range = (0.5, 1.5)  # C1: Reaction time normalized
+    else:
+        output_range = (-3, 3)  # C2: Externalizing factor (z-score range)
+
     model = create_pretrained_model(
         backbone=args.backbone,
         challenge=f'c{args.challenge}',
         device=device,
-        output_range=(0.5, 1.5) if args.challenge == 1 else None
+        output_range=output_range
     )
 
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
