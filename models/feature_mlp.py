@@ -33,7 +33,7 @@ def compute_psd_torch(signal, sfreq=100, nperseg=256):
 
     fft_result = torch.fft.rfft(windowed)
     psd = (fft_result.abs() ** 2) / nperseg
-    freqs = torch.fft.rfftfreq(nperseg, 1/sfreq)
+    freqs = torch.fft.rfftfreq(nperseg, 1/sfreq).to(signal.device)  # Ensure on same device
 
     return freqs, psd
 
