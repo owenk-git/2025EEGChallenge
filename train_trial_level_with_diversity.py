@@ -124,7 +124,7 @@ def train_with_diversity(
         all_train_targets = []
 
         pbar = tqdm(train_loader, desc=f"Epoch {epoch}/{epochs}")
-        for X_batch, y_batch, _ in pbar:
+        for X_batch, y_batch in pbar:
             X_batch = X_batch.to(device)
             y_batch = y_batch.to(device)
 
@@ -175,7 +175,7 @@ def train_with_diversity(
         all_val_targets = []
 
         with torch.no_grad():
-            for X_batch, y_batch, _ in val_loader:
+            for X_batch, y_batch in val_loader:
                 X_batch = X_batch.to(device)
                 y_batch = y_batch.to(device)
 
