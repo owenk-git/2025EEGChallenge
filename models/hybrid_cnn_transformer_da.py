@@ -336,8 +336,8 @@ class HybridCNNTransformerDA(nn.Module):
         # Transformer features
         transformer_features = self.transformer(cnn_features)  # (batch, d_model, time)
 
-        # Flatten transformer features
-        transformer_features_flat = transformer_features.view(transformer_features.size(0), -1)
+        # Flatten transformer features (use reshape for non-contiguous tensors)
+        transformer_features_flat = transformer_features.reshape(transformer_features.size(0), -1)
 
         # ERP features
         erp_features = self.erp_extractor(x)  # (batch, 13)

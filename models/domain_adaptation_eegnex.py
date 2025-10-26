@@ -153,6 +153,10 @@ class DomainAdaptationEEGNeX(nn.Module):
         final_time = reduced_time // 4  # Two pooling layers (2, 2)
         self.feature_dim = 128 * final_time
 
+        # Adaptive pooling to handle variable time dimensions
+        self.adaptive_pool = nn.AdaptiveAvgPool1d(28)  # Fixed output size
+        self.feature_dim = 128 * 28  # Now always 3584
+
         # Task predictor (regression head)
         self.task_predictor = nn.Sequential(
             nn.Flatten(),
@@ -189,6 +193,9 @@ class DomainAdaptationEEGNeX(nn.Module):
         x = self.sep_conv1(x)  # (batch, 128, time//8)
         x = self.sep_conv2(x)  # (batch, 128, time//16)
         x = self.sep_conv3(x)  # (batch, 128, time//16)
+
+        # Adaptive pooling to fixed size
+        x = self.adaptive_pool(x)  # (batch, 128, 28)
 
         return x
 

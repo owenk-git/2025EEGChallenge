@@ -78,12 +78,11 @@ class SharedFeatureExtractor(nn.Module):
             nn.Dropout(0.3)
         )
 
-        # Calculate feature dimension
-        reduced_time = n_times // 4  # temporal pool
-        reduced_time = reduced_time // 2  # sep_conv1 pool
-        reduced_time = reduced_time // 2  # sep_conv2 pool
-        reduced_time = reduced_time // 2  # sep_conv3 pool
-        self.feature_dim = 256 * reduced_time
+        # Adaptive pooling to handle variable time dimensions
+        self.adaptive_pool = nn.AdaptiveAvgPool1d(28)  # Fixed output size
+
+        # Calculate feature dimension (now fixed)
+        self.feature_dim = 256 * 28
 
     def forward(self, x):
         """
@@ -111,6 +110,9 @@ class SharedFeatureExtractor(nn.Module):
         x = self.sep_conv1(x)  # (batch, 128, time//8)
         x = self.sep_conv2(x)  # (batch, 128, time//16)
         x = self.sep_conv3(x)  # (batch, 256, time//32)
+
+        # Adaptive pooling to fixed size
+        x = self.adaptive_pool(x)  # (batch, 256, 28)
 
         # Flatten
         x = x.view(x.size(0), -1)  # (batch, feature_dim)
