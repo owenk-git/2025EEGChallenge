@@ -66,6 +66,11 @@ def get_model_creation_code(model_type, challenge):
             d_model=128,
             nhead=8,
             num_transformer_layers=4
+        )''',
+        'trial_level': f'''TrialLevelRTPredictor(
+            n_channels=129,
+            trial_length=200,
+            pre_stim_points=50
         )'''
     }
     return code[model_type]
@@ -76,7 +81,8 @@ def get_model_forward_code(model_type):
     code = {
         'domain_adaptation': '''predictions = model(eeg_tensor)''',
         'cross_task': '''predictions = model(eeg_tensor, task_name='contrast_change_detection')''',
-        'hybrid': '''predictions = model(eeg_tensor)'''
+        'hybrid': '''predictions = model(eeg_tensor)''',
+        'trial_level': '''predictions = model(eeg_tensor)'''
     }
     return code[model_type]
 
