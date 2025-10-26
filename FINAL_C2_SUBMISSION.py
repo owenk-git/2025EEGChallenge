@@ -55,7 +55,7 @@ def load_recording_level_model(model_path, model_type, device):
     else:
         raise ValueError(f"Unknown model type: {model_type}")
 
-    checkpoint = torch.load(model_path, map_location=device)
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
 
