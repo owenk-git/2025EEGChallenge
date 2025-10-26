@@ -170,7 +170,7 @@ def create_c2_submission(
     # Load test dataset (without train parameter)
     print("Loading test dataset...")
     test_dataset = EEGChallengeDataset(
-        task="rest",  # C2 uses resting state
+        task="contrastChangeDetection",  # C2 uses same task as training
         release="R11",
         cache_dir="./data_cache/eeg_challenge",
         mini=False
