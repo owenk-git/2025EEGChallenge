@@ -147,7 +147,7 @@ def create_c1_submission_with_temperature(
 
     with torch.no_grad():
         for rec_idx in tqdm(range(len(test_dataset.datasets)), desc="Processing"):
-            raw = test_dataset.datasets[rec_idx]
+            raw = test_dataset.datasets[rec_idx].raw
 
             # Extract trials
             trials = extract_trials_from_recording(raw, pre_stim=0.5, post_stim=1.5)
