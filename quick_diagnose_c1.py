@@ -26,8 +26,8 @@ print("\n3. Sampling RT values from first 1000 trials...")
 rts = []
 for i in range(min(1000, len(dataset))):
     try:
-        data, rt_norm, info = dataset[i]
-        rts.append(float(rt_norm))
+        data, rt_norm = dataset[i]
+        rts.append(float(rt_norm.item() if hasattr(rt_norm, 'item') else rt_norm))
     except Exception as e:
         print(f"   Error at trial {i}: {e}")
         continue
