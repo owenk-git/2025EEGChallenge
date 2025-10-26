@@ -18,8 +18,8 @@ print(f"   Best val NRMSE: {checkpoint.get('best_nrmse', 'N/A')}")
 print("\n2. Loading sample of training data...")
 from data.trial_level_loader import TrialLevelDataset
 
-dataset = TrialLevelDataset(challenge='c1', mini=False, split='train')
-print(f"   Total trials in training: {len(dataset)}")
+dataset = TrialLevelDataset(challenge='c1', mini=False)
+print(f"   Total trials in dataset: {len(dataset)}")
 
 # Sample 1000 trials
 print("\n3. Sampling RT values from first 1000 trials...")
