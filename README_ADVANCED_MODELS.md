@@ -4,7 +4,22 @@ Three state-of-the-art models designed to beat 0.976 score through domain adapta
 
 ## Quick Start
 
-### Train All Models (Recommended)
+### Step 1: Preprocess Data
+
+First, preprocess the data from eegdash format to numpy arrays:
+
+```bash
+# Preprocess both challenges (takes ~10-30 minutes)
+python3 preprocess_data_for_advanced_models.py --challenges c1,c2
+
+# Or test with limited samples first
+python3 preprocess_data_for_advanced_models.py --challenges c1,c2 --max_samples 100
+
+# Verify data is ready
+python3 check_data_ready.py
+```
+
+### Step 2: Train All Models (Recommended)
 
 ```bash
 chmod +x train_all_advanced_models.sh
@@ -106,17 +121,19 @@ All previous models (CNN Ensemble, Transformer, EEGNeX, ERP MLP) hit the same ce
 
 ## Expected Timeline
 
-- Training: 6-8 hours (all 3 models)
-- Submission creation: 15 minutes
-- Competition evaluation: 3-6 hours (3 submissions)
-- **Total: ~10-12 hours to results**
+- **Preprocessing**: 10-30 minutes
+- **Training**: 6-8 hours (all 3 models)
+- **Submission creation**: 15 minutes
+- **Competition evaluation**: 3-6 hours (3 submissions)
+- **Total**: ~10-13 hours to results
 
 ## Next Steps
 
-1. Run `./train_all_advanced_models.sh`
-2. Wait for training to complete
-3. Submit all 3 models to competition
-4. Analyze which approach works best
-5. Iterate based on results
+1. **Preprocess data**: `python3 preprocess_data_for_advanced_models.py --challenges c1,c2`
+2. **Check data**: `python3 check_data_ready.py`
+3. **Train models**: `./train_all_advanced_models.sh`
+4. **Submit** all 3 models to competition
+5. **Analyze** which approach works best
+6. **Iterate** based on results
 
 Good luck! 🚀
