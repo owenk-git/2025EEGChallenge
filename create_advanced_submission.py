@@ -208,13 +208,32 @@ class EEGNeXBlock(nn.Module):
         return x + residual
 
 
+class SubjectDiscriminator(nn.Module):
+    """Subject discriminator for adversarial training (needed for checkpoint loading)"""
+    def __init__(self, input_dim, num_subjects):
+        super().__init__()
+        self.discriminator = nn.Sequential(
+            nn.Linear(input_dim, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, num_subjects)
+        )
+
+    def forward(self, x):
+        return self.discriminator(x)
+
+
 class DomainAdaptationEEGNeX(nn.Module):
     """EEGNeX with Domain Adaptation for C2"""
-    def __init__(self, n_channels=129, n_times=900, challenge='c2', output_range=(-3, 3)):
+    def __init__(self, n_channels=129, n_times=900, challenge='c2', num_subjects=100, output_range=(-3, 3)):
         super().__init__()
         self.n_channels = n_channels
         self.n_times = n_times
         self.challenge = challenge
+        self.num_subjects = num_subjects
         self.output_range = output_range
 
         # Spatial filtering
@@ -265,6 +284,9 @@ class DomainAdaptationEEGNeX(nn.Module):
             nn.Dropout(0.4),
             nn.Linear(64, 1)
         )
+
+        # Subject discriminator (for checkpoint compatibility, not used in inference)
+        self.subject_discriminator = SubjectDiscriminator(self.feature_dim, num_subjects)
 
     def forward(self, x):
         # Add channel dimension
@@ -348,6 +370,7 @@ class Submission:
             n_channels=129,
             n_times=900,
             challenge='c2',
+            num_subjects=100,
             output_range=(-3, 3)
         )
 
