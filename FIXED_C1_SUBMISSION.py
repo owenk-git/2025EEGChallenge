@@ -150,14 +150,13 @@ def create_c1_submission(
     best_nrmse = checkpoint.get('best_nrmse', 'N/A')
     print(f"✅ Model loaded (Val NRMSE: {best_nrmse})\n")
 
-    # Load test dataset
+    # Load test dataset (without train parameter - loads all available data)
     print("Loading test dataset...")
     test_dataset = EEGChallengeDataset(
         task="contrastChangeDetection",
         release="R11",
         cache_dir="./data_cache/eeg_challenge",
-        mini=False,
-        train=False  # Test set
+        mini=False
     )
 
     print(f"✅ Loaded {len(test_dataset.datasets)} test recordings\n")
