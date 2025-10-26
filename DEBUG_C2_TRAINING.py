@@ -228,8 +228,8 @@ def train_domain_adaptation_c2_debug(
             source_y = y_batch[:split]
 
             # Forward pass with domain adaptation
-            predictions, source_features = model(source_X, alpha=alpha, return_features=True)
-            _, target_features = model(target_X, alpha=alpha, return_features=True)
+            predictions, source_features, _ = model(source_X, alpha=alpha, return_features=True)
+            _, target_features, _ = model(target_X, alpha=alpha, return_features=True)
 
             # Task loss
             task_loss = nn.MSELoss()(predictions, source_y)
@@ -239,7 +239,7 @@ def train_domain_adaptation_c2_debug(
             mmd_loss = compute_mmd_loss(source_features, target_features)
 
             # Entropy loss (confident predictions)
-            target_preds, _ = model(target_X, alpha=alpha, return_features=True)
+            target_preds, _, _ = model(target_X, alpha=alpha, return_features=True)
             target_probs = torch.sigmoid(target_preds)
             entropy_loss = -(target_probs * torch.log(target_probs + 1e-8) +
                             (1 - target_probs) * torch.log(1 - target_probs + 1e-8)).mean()
