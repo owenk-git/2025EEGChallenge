@@ -92,8 +92,12 @@ class CNNFeatureExtractor(nn.Module):
             nn.Dropout(0.3)
         )
 
-        # Calculate output time dimension
-        self.reduced_time = n_times // 4 // 2 // 2  # 4 from temporal, 2 from sep1, 2 from sep2
+        # Adaptive pooling to handle variable time dimensions
+        self.adaptive_pool = nn.AdaptiveAvgPool1d(28)  # Fixed output size
+        self.reduced_time = 28  # Now always 28
+
+        # Calculate output time dimension (kept for backward compatibility, now constant)
+        # self.reduced_time = n_times // 4 // 2 // 2  # 4 from temporal, 2 from sep1, 2 from sep2
 
     def forward(self, x):
         """
@@ -118,6 +122,9 @@ class CNNFeatureExtractor(nn.Module):
         # Separable convolutions
         x = self.sep_conv1(x)  # (batch, 128, time//8)
         x = self.sep_conv2(x)  # (batch, 128, time//16)
+
+        # Adaptive pooling to fixed size
+        x = self.adaptive_pool(x)  # (batch, 128, 28)
 
         return x
 
@@ -307,12 +314,12 @@ class HybridCNNTransformerDA(nn.Module):
         # ERP feature extractor
         self.erp_extractor = ERPFeatureExtractor(sfreq=100)
 
-        # Calculate feature dimensions
-        transformer_time = self.cnn.reduced_time
-        learned_feature_dim = d_model * transformer_time
+        # Calculate feature dimensions (now constant due to adaptive pooling)
+        transformer_time = 28  # Fixed by adaptive pooling in CNN
+        learned_feature_dim = d_model * transformer_time  # 128 * 28 = 3584
         erp_feature_dim = 13
 
-        total_feature_dim = learned_feature_dim + erp_feature_dim
+        total_feature_dim = learned_feature_dim + erp_feature_dim  # 3584 + 13 = 3597
 
         # Fusion and prediction head
         self.fusion = nn.Sequential(
