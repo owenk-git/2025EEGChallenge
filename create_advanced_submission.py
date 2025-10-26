@@ -135,7 +135,7 @@ class TrialLevelRTPredictor(nn.Module):
         pre_features = self.pre_encoder(x_pre)
         post_features = self.post_encoder(x_post)
         combined = torch.cat([pre_features, post_features], dim=1)
-        rt_pred = self.rt_head(combined).squeeze(-1)
+        rt_pred = self.rt_head(combined)  # Keep (batch, 1) shape for competition
         return rt_pred
 
 
@@ -255,8 +255,7 @@ class DomainAdaptationEEGNeX(nn.Module):
         x = self.adaptive_pool(x)
 
         # Task prediction
-        predictions = self.task_predictor(x)
-        predictions = predictions.squeeze(-1)
+        predictions = self.task_predictor(x)  # Keep (batch, 1) shape for competition
 
         # Clip predictions
         predictions = torch.clamp(predictions, self.output_range[0], self.output_range[1])
