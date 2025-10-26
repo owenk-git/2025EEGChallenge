@@ -88,7 +88,7 @@ def train_trial_level(
     # Optimizer and loss
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=0.5, patience=10, verbose=True
+        optimizer, mode='min', factor=0.5, patience=10
     )
     criterion = nn.MSELoss()
 
