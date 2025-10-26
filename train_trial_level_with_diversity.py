@@ -62,8 +62,15 @@ def train_with_diversity(
 
     # Load data
     print("Loading data...")
-    train_dataset = TrialLevelDataset(challenge=challenge, mini=mini, split='train')
-    val_dataset = TrialLevelDataset(challenge=challenge, mini=mini, split='val')
+    full_dataset = TrialLevelDataset(challenge=challenge, mini=mini)
+
+    # Split into train/val (80/20)
+    train_size = int(0.8 * len(full_dataset))
+    val_size = len(full_dataset) - train_size
+    train_dataset, val_dataset = torch.utils.data.random_split(
+        full_dataset, [train_size, val_size],
+        generator=torch.Generator().manual_seed(42)
+    )
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
