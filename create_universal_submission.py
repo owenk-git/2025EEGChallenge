@@ -20,7 +20,8 @@ def get_model_code(model_name):
     model_files = {
         'feature_mlp': 'models/feature_mlp.py',
         'cnn_ensemble': 'models/cnn_ensemble.py',
-        'eegnex_improved': 'models/eegnex_augmented.py'
+        'eegnex_improved': 'models/eegnex_augmented.py',
+        'erp_mlp': 'models/erp_features_mlp.py'
     }
 
     if model_name not in model_files:
@@ -172,6 +173,22 @@ def get_model_creation_code(model_name, challenge):
             use_augmentation=False
         )'''
 
+    elif model_name == 'erp_mlp':
+        if challenge == 'c1':
+            return '''ERPMLP(
+            n_channels=129,
+            sfreq=100,
+            challenge_name='c1',
+            output_range=(0.5, 1.5)
+        )'''
+        else:
+            return '''ERPMLP(
+            n_channels=129,
+            sfreq=100,
+            challenge_name='c2',
+            output_range=(-3, 3)
+        )'''
+
     else:
         raise ValueError(f"Unknown model: {model_name}")
 
@@ -182,7 +199,8 @@ def create_universal_submission(model_name, c1_checkpoint, c2_checkpoint, output
     model_display_names = {
         'feature_mlp': 'Feature MLP',
         'cnn_ensemble': 'CNN Ensemble',
-        'eegnex_improved': 'Improved EEGNeX'
+        'eegnex_improved': 'Improved EEGNeX',
+        'erp_mlp': 'ERP MLP'
     }
 
     print("="*70)
@@ -262,7 +280,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create universal model submission")
 
     parser.add_argument('--model', type=str, required=True,
-                       choices=['feature_mlp', 'cnn_ensemble', 'eegnex_improved'],
+                       choices=['feature_mlp', 'cnn_ensemble', 'eegnex_improved', 'erp_mlp'],
                        help='Model type')
     parser.add_argument('--c1', type=str, required=True,
                        help='Path to C1 checkpoint')
