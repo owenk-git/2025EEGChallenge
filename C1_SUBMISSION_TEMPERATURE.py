@@ -22,66 +22,73 @@ import mne
 from models.trial_level_rt_predictor import TrialLevelRTPredictor
 
 
-def extract_trials_from_recording(raw, pre_stim=0.5, post_stim=1.5):
+def extract_trials_from_recording(raw, pre_stim=0.5, post_stim=1.5, sfreq=100, n_channels=129):
     """
-    Extract individual trials from recording
+    Extract individual trials from recording using sliding windows as fallback
 
-    Args:
-        raw: MNE Raw object
-        pre_stim: Pre-stimulus time (seconds)
-        post_stim: Post-stimulus time (seconds)
-
-    Returns:
-        trials: List of (trial_data, rt) tuples
+    Returns: List of trial data arrays (not tuples - we don't need RT for prediction)
     """
-    sfreq = raw.info['sfreq']
-
-    # Get events
-    events, event_id = mne.events_from_annotations(raw, verbose=False)
-
-    # Find stimulus and response events
-    stim_events = []
-    resp_events = []
-
-    for idx, (sample, _, event_type) in enumerate(events):
-        if event_type in [1, 2]:  # Stimulus events
-            stim_events.append({'sample': sample, 'onset': sample / sfreq})
-        elif event_type in [3, 4]:  # Response events
-            resp_events.append({'sample': sample, 'onset': sample / sfreq})
-
-    # Extract trials
+    annotations = raw.annotations
     trials = []
+    trial_length = int((pre_stim + post_stim) * sfreq)  # 200 points
+
+    # Try to find stimulus events
+    stim_events = []
+    for i in range(len(annotations)):
+        desc = annotations.description[i].lower()
+        onset = annotations.onset[i]
+        if any(kw in desc for kw in ['stimulus', 'stim', 'change', 'target', 'cue']):
+            stim_events.append({'onset': onset})
+
+    # Extract trials around each stimulus
     for stim in stim_events:
         stim_time = stim['onset']
-
-        # Find matching response
-        matched_resp = None
-        for resp in resp_events:
-            resp_time = resp['onset']
-            rt = resp_time - stim_time
-            if 0.15 <= rt <= 2.0:  # Valid RT range
-                matched_resp = resp
-                break
-
-        if matched_resp is None:
-            continue
-
-        # Extract trial data [-pre_stim, +post_stim]
         start_sample = int((stim_time - pre_stim) * sfreq)
         stop_sample = int((stim_time + post_stim) * sfreq)
 
-        if start_sample < 0 or stop_sample > len(raw.times):
+        if start_sample < 0 or stop_sample > raw.n_times:
             continue
 
         trial_data = raw.get_data(start=start_sample, stop=stop_sample)
 
-        # Ensure correct length (200 samples @ 100Hz for 2s window)
-        expected_length = int((pre_stim + post_stim) * sfreq)
-        if trial_data.shape[1] != expected_length:
-            continue
+        # Ensure correct shape
+        if trial_data.shape[1] != trial_length:
+            if trial_data.shape[1] < trial_length:
+                pad_width = trial_length - trial_data.shape[1]
+                trial_data = np.pad(trial_data, ((0, 0), (0, pad_width)), mode='edge')
+            else:
+                trial_data = trial_data[:, :trial_length]
 
-        rt = matched_resp['onset'] - stim_time
-        trials.append((trial_data, rt))
+        if trial_data.shape[0] > n_channels:
+            trial_data = trial_data[:n_channels, :]
+        elif trial_data.shape[0] < n_channels:
+            pad_width = n_channels - trial_data.shape[0]
+            trial_data = np.pad(trial_data, ((0, pad_width), (0, 0)), mode='constant')
+
+        trials.append(trial_data)
+
+    # Fallback to sliding windows if no events found
+    if len(trials) == 0:
+        data = raw.get_data()
+        window_samples = trial_length
+        num_windows = max(1, data.shape[1] // window_samples)
+
+        for win_idx in range(num_windows):
+            start = win_idx * window_samples
+            stop = min(start + window_samples, data.shape[1])
+            trial_data = data[:, start:stop]
+
+            if trial_data.shape[1] < trial_length:
+                pad_width = trial_length - trial_data.shape[1]
+                trial_data = np.pad(trial_data, ((0, 0), (0, pad_width)), mode='edge')
+
+            if trial_data.shape[0] > n_channels:
+                trial_data = trial_data[:n_channels, :]
+            elif trial_data.shape[0] < n_channels:
+                pad_width = n_channels - trial_data.shape[0]
+                trial_data = np.pad(trial_data, ((0, pad_width), (0, 0)), mode='constant')
+
+            trials.append(trial_data)
 
     return trials
 
@@ -158,7 +165,7 @@ def create_c1_submission_with_temperature(
 
             # Predict RT for each trial
             trial_predictions = []
-            for trial_data, rt_actual in trials:
+            for trial_data in trials:
                 trial_tensor = torch.tensor(trial_data, dtype=torch.float32).unsqueeze(0).to(device)
                 rt_pred = model(trial_tensor).item()  # [0, 1]
 
