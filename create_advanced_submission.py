@@ -253,11 +253,11 @@ if __name__ == '__main__':
 
 def main():
     parser = argparse.ArgumentParser(description='Create Advanced Model Submission')
-    parser.add_argument('--model', type=str, required=True,
+    parser.add_argument('--model', type=str, default='trial_level',
                        choices=['domain_adaptation', 'cross_task', 'hybrid', 'trial_level'],
-                       help='Model type')
-    parser.add_argument('--name', type=str, required=True,
-                       help='Submission name (e.g., domain_adaptation_v1)')
+                       help='Model type (default: trial_level)')
+    parser.add_argument('--name', type=str, default='submission',
+                       help='Submission name (default: submission)')
     parser.add_argument('--checkpoint_c1', type=str, required=True,
                        help='Path to C1 checkpoint')
     parser.add_argument('--checkpoint_c2', type=str, required=True,
