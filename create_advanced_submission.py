@@ -129,13 +129,46 @@ class TrialLevelRTPredictor(nn.Module):
         )
 
     def forward(self, x):
+        """
+        Handle both trial-level (200 points) and recording-level (900 points) input
+        """
+        batch_size, n_channels, n_times = x.shape
+
+        # If input is recording-level (900 points), extract trials
+        if n_times > self.trial_length:
+            # Extract trials using sliding window
+            stride = self.trial_length // 2  # 50% overlap
+            trials = []
+
+            for i in range(batch_size):
+                recording = x[i]  # (channels, time)
+
+                # Sliding window to extract trials
+                for start_idx in range(0, n_times - self.trial_length + 1, stride):
+                    trial = recording[:, start_idx:start_idx + self.trial_length]
+                    trials.append(trial)
+
+            if len(trials) == 0:
+                # Fallback: use first 200 points
+                x = x[:, :, :self.trial_length]
+            else:
+                # Stack all trials
+                x = torch.stack(trials)  # (n_trials, channels, 200)
+
+        # Process trials
         x = self.spatial_attention(x)
         x_pre = x[:, :, :self.pre_stim_points]
         x_post = x[:, :, self.pre_stim_points:]
         pre_features = self.pre_encoder(x_pre)
         post_features = self.post_encoder(x_post)
         combined = torch.cat([pre_features, post_features], dim=1)
-        rt_pred = self.rt_head(combined)  # Keep (batch, 1) shape for competition
+        rt_pred = self.rt_head(combined)  # (n_trials, 1) or (batch, 1)
+
+        # If we extracted multiple trials, aggregate to recording-level prediction
+        if n_times > self.trial_length and len(trials) > 0:
+            # Take median across all trials
+            rt_pred = torch.median(rt_pred).unsqueeze(0).unsqueeze(0)  # (1, 1)
+
         return rt_pred
 
 
