@@ -126,7 +126,7 @@ def train_with_diversity(
         pbar = tqdm(train_loader, desc=f"Epoch {epoch}/{epochs}")
         for X_batch, y_batch in pbar:
             X_batch = X_batch.to(device)
-            y_batch = y_batch.to(device)
+            y_batch = y_batch.to(device).squeeze()  # Flatten targets
 
             optimizer.zero_grad()
 
@@ -162,8 +162,8 @@ def train_with_diversity(
         train_task_loss /= len(train_loader)
         train_div_loss /= len(train_loader)
 
-        all_train_preds = np.array(all_train_preds)
-        all_train_targets = np.array(all_train_targets)
+        all_train_preds = np.array(all_train_preds).flatten()
+        all_train_targets = np.array(all_train_targets).flatten()
 
         train_nrmse = np.sqrt(np.mean((all_train_preds - all_train_targets)**2)) / np.std(all_train_targets)
         train_corr = np.corrcoef(all_train_preds, all_train_targets)[0, 1]
@@ -177,7 +177,7 @@ def train_with_diversity(
         with torch.no_grad():
             for X_batch, y_batch in val_loader:
                 X_batch = X_batch.to(device)
-                y_batch = y_batch.to(device)
+                y_batch = y_batch.to(device).squeeze()  # Flatten targets
 
                 predictions = model(X_batch).squeeze()
                 loss = nn.MSELoss()(predictions, y_batch)
@@ -188,8 +188,8 @@ def train_with_diversity(
 
         val_loss /= len(val_loader)
 
-        all_val_preds = np.array(all_val_preds)
-        all_val_targets = np.array(all_val_targets)
+        all_val_preds = np.array(all_val_preds).flatten()
+        all_val_targets = np.array(all_val_targets).flatten()
 
         val_nrmse = np.sqrt(np.mean((all_val_preds - all_val_targets)**2)) / np.std(all_val_targets)
         val_corr = np.corrcoef(all_val_preds, all_val_targets)[0, 1]
