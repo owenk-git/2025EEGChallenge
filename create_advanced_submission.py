@@ -1,10 +1,6 @@
 """
-Create submission for advanced models:
-- Domain Adaptation EEGNeX
-- Cross-Task Pre-Training
-- Hybrid CNN-Transformer-DA
-
-Embeds model code into submission.py to avoid architecture mismatches
+Create submission ZIP with proper Submission class structure
+Matches format from working erp_mlp_submission.zip
 """
 
 import argparse
@@ -13,265 +9,434 @@ import zipfile
 import shutil
 
 
-def get_model_files(model_type):
-    """Get list of model files to include"""
-    files = {
-        'domain_adaptation': ['models/domain_adaptation_eegnex.py'],
-        'cross_task': ['models/cross_task_pretrain.py'],
-        'hybrid': ['models/hybrid_cnn_transformer_da.py'],
-        'trial_level': ['models/trial_level_rt_predictor.py']
-    }
-    return files[model_type]
+def create_submission_py_content():
+    """Generate submission.py with proper Submission class and embedded model code"""
+
+    return '''"""
+Submission for NeurIPS 2025 EEG Challenge
+Trial-Level RT Predictor (C1) + Domain Adaptation EEGNeX (C2)
+"""
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from pathlib import Path
 
 
-def get_model_import(model_type):
-    """Get import statement for model"""
-    imports = {
-        'domain_adaptation': 'from domain_adaptation_eegnex import DomainAdaptationEEGNeX',
-        'cross_task': 'from cross_task_pretrain import CrossTaskPretrainModel',
-        'hybrid': 'from hybrid_cnn_transformer_da import HybridCNNTransformerDA',
-        'trial_level': 'from trial_level_rt_predictor import TrialLevelRTPredictor'
-    }
-    return imports[model_type]
+# ============================================================================
+# TRIAL-LEVEL RT PREDICTOR (C1 Model)
+# ============================================================================
+
+class SpatialAttention(nn.Module):
+    """Learn which EEG channels are most predictive of RT"""
+    def __init__(self, n_channels=129):
+        super().__init__()
+        self.attention = nn.Sequential(
+            nn.Linear(n_channels, n_channels // 4),
+            nn.ReLU(),
+            nn.Linear(n_channels // 4, n_channels),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        channel_stats = x.mean(dim=2)
+        attention_weights = self.attention(channel_stats)
+        attention_weights = attention_weights.unsqueeze(2)
+        return x * attention_weights
 
 
-def get_model_creation_code(model_type, challenge):
-    """Get model creation code"""
-    if challenge == 'c1':
-        output_range = '(0.5, 1.5)'
-    else:
-        output_range = '(-3, 3)'
+class PreStimulusEncoder(nn.Module):
+    """Encode pre-stimulus period (-500ms to 0ms)"""
+    def __init__(self, n_channels=129, time_points=50):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv1d(n_channels, 64, kernel_size=11, padding=5),
+            nn.BatchNorm1d(64),
+            nn.ELU(),
+            nn.AvgPool1d(2),
+            nn.Dropout(0.3),
+            nn.Conv1d(64, 32, kernel_size=7, padding=3),
+            nn.BatchNorm1d(32),
+            nn.ELU(),
+            nn.AvgPool1d(2),
+            nn.Dropout(0.3)
+        )
+        self.pool = nn.AdaptiveAvgPool1d(10)
 
-    code = {
-        'domain_adaptation': f'''DomainAdaptationEEGNeX(
-            n_channels=129,
-            n_times=900,
-            challenge='{challenge}',
-            num_subjects=100,
-            output_range={output_range}
-        )''',
-        'cross_task': f'''CrossTaskPretrainModel(
-            n_channels=129,
-            n_times=900,
-            num_tasks=6,
-            task_names=['resting_state', 'video_watching', 'reading',
-                       'contrast_change_detection', 'task_5', 'task_6'],
-            output_ranges=[None, None, None, {output_range}, None, None]
-        )''',
-        'hybrid': f'''HybridCNNTransformerDA(
-            n_channels=129,
-            n_times=900,
-            challenge='{challenge}',
-            output_range={output_range},
-            d_model=128,
-            nhead=8,
-            num_transformer_layers=4
-        )''',
-        'trial_level': f'''TrialLevelRTPredictor(
+    def forward(self, x_pre):
+        x = self.conv(x_pre)
+        x = self.pool(x)
+        x = x.reshape(x.size(0), -1)
+        return x
+
+
+class PostStimulusEncoder(nn.Module):
+    """Encode post-stimulus period (0ms to +1500ms)"""
+    def __init__(self, n_channels=129, time_points=150):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv1d(n_channels, 128, kernel_size=15, padding=7),
+            nn.BatchNorm1d(128),
+            nn.ELU(),
+            nn.AvgPool1d(2),
+            nn.Dropout(0.3),
+            nn.Conv1d(128, 128, kernel_size=11, padding=5),
+            nn.BatchNorm1d(128),
+            nn.ELU(),
+            nn.AvgPool1d(2),
+            nn.Dropout(0.3),
+            nn.Conv1d(128, 64, kernel_size=7, padding=3),
+            nn.BatchNorm1d(64),
+            nn.ELU(),
+            nn.AvgPool1d(2),
+            nn.Dropout(0.3)
+        )
+        self.pool = nn.AdaptiveAvgPool1d(20)
+
+    def forward(self, x_post):
+        x = self.conv(x_post)
+        x = self.pool(x)
+        x = x.reshape(x.size(0), -1)
+        return x
+
+
+class TrialLevelRTPredictor(nn.Module):
+    """Trial-Level RT Predictor for C1"""
+    def __init__(self, n_channels=129, trial_length=200, pre_stim_points=50):
+        super().__init__()
+        self.n_channels = n_channels
+        self.trial_length = trial_length
+        self.pre_stim_points = pre_stim_points
+        self.post_stim_points = trial_length - pre_stim_points
+
+        self.spatial_attention = SpatialAttention(n_channels)
+        self.pre_encoder = PreStimulusEncoder(n_channels, self.pre_stim_points)
+        self.post_encoder = PostStimulusEncoder(n_channels, self.post_stim_points)
+
+        total_features = 320 + 1280
+        self.rt_head = nn.Sequential(
+            nn.Linear(total_features, 512),
+            nn.ELU(),
+            nn.Dropout(0.4),
+            nn.Linear(512, 128),
+            nn.ELU(),
+            nn.Dropout(0.4),
+            nn.Linear(128, 32),
+            nn.ELU(),
+            nn.Dropout(0.4),
+            nn.Linear(32, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        x = self.spatial_attention(x)
+        x_pre = x[:, :, :self.pre_stim_points]
+        x_post = x[:, :, self.pre_stim_points:]
+        pre_features = self.pre_encoder(x_pre)
+        post_features = self.post_encoder(x_post)
+        combined = torch.cat([pre_features, post_features], dim=1)
+        rt_pred = self.rt_head(combined).squeeze(-1)
+        return rt_pred
+
+
+# ============================================================================
+# DOMAIN ADAPTATION EEGNEX (C2 Model)
+# ============================================================================
+
+class SeparableConv1d(nn.Module):
+    """Depthwise Separable Convolution"""
+    def __init__(self, in_channels, out_channels, kernel_size, bias=False):
+        super().__init__()
+        self.depthwise = nn.Conv1d(in_channels, in_channels, kernel_size,
+                                   groups=in_channels, padding=kernel_size//2, bias=bias)
+        self.pointwise = nn.Conv1d(in_channels, out_channels, 1, bias=bias)
+        self.bn = nn.BatchNorm1d(out_channels)
+
+    def forward(self, x):
+        x = self.depthwise(x)
+        x = self.pointwise(x)
+        x = self.bn(x)
+        return x
+
+
+class EEGNeXBlock(nn.Module):
+    """EEGNeX Block with residual connection"""
+    def __init__(self, channels, kernel_size=5):
+        super().__init__()
+        self.sep_conv = SeparableConv1d(channels, channels, kernel_size)
+        self.activation = nn.ELU()
+        self.dropout = nn.Dropout(0.3)
+
+    def forward(self, x):
+        residual = x
+        x = self.sep_conv(x)
+        x = self.activation(x)
+        x = self.dropout(x)
+        return x + residual
+
+
+class DomainAdaptationEEGNeX(nn.Module):
+    """EEGNeX with Domain Adaptation for C2"""
+    def __init__(self, n_channels=129, n_times=900, challenge='c2', output_range=(-3, 3)):
+        super().__init__()
+        self.n_channels = n_channels
+        self.n_times = n_times
+        self.challenge = challenge
+        self.output_range = output_range
+
+        # Spatial filtering
+        self.spatial_conv = nn.Sequential(
+            nn.Conv2d(1, 32, (n_channels, 1), bias=False),
+            nn.BatchNorm2d(32),
+            nn.ELU()
+        )
+
+        # Temporal convolution
+        self.temporal_conv = nn.Sequential(
+            nn.Conv2d(32, 64, (1, 25), padding=(0, 12), bias=False),
+            nn.BatchNorm2d(64),
+            nn.ELU(),
+            nn.AvgPool2d((1, 4)),
+            nn.Dropout(0.3)
+        )
+
+        # Separable conv blocks
+        self.sep_conv1 = nn.Sequential(
+            SeparableConv1d(64, 128, kernel_size=5),
+            nn.ELU(),
+            nn.AvgPool1d(2),
+            nn.Dropout(0.3)
+        )
+
+        self.sep_conv2 = nn.Sequential(
+            SeparableConv1d(128, 128, kernel_size=5),
+            nn.ELU(),
+            nn.AvgPool1d(2),
+            nn.Dropout(0.3)
+        )
+
+        self.sep_conv3 = EEGNeXBlock(128, kernel_size=5)
+
+        # Adaptive pooling
+        self.adaptive_pool = nn.AdaptiveAvgPool1d(28)
+        self.feature_dim = 128 * 28
+
+        # Task predictor
+        self.task_predictor = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(self.feature_dim, 256),
+            nn.ELU(),
+            nn.Dropout(0.4),
+            nn.Linear(256, 64),
+            nn.ELU(),
+            nn.Dropout(0.4),
+            nn.Linear(64, 1)
+        )
+
+    def forward(self, x):
+        # Add channel dimension
+        x = x.unsqueeze(1)
+
+        # Spatial filtering
+        x = self.spatial_conv(x)
+
+        # Temporal filtering
+        x = self.temporal_conv(x)
+
+        # Remove spatial dimension
+        x = x.squeeze(2)
+
+        # Separable convolutions
+        x = self.sep_conv1(x)
+        x = self.sep_conv2(x)
+        x = self.sep_conv3(x)
+
+        # Adaptive pooling
+        x = self.adaptive_pool(x)
+
+        # Task prediction
+        predictions = self.task_predictor(x)
+        predictions = predictions.squeeze(-1)
+
+        # Clip predictions
+        predictions = torch.clamp(predictions, self.output_range[0], self.output_range[1])
+
+        return predictions
+
+
+# ============================================================================
+# SUBMISSION CLASS
+# ============================================================================
+
+def load_model_path():
+    """Get the directory containing model files"""
+    return Path(__file__).parent
+
+
+class Submission:
+    """Submission class for NeurIPS 2025 EEG Challenge"""
+
+    def __init__(self, SFREQ, DEVICE):
+        self.sfreq = SFREQ
+        self.device = DEVICE
+        self.model_path = load_model_path()
+
+        print(f"🤖 Trial-Level + Domain Adaptation Submission")
+        print(f"   Device: {DEVICE}")
+        print(f"   Sample rate: {SFREQ} Hz")
+
+    def get_model_challenge_1(self):
+        """Load C1 model (Trial-Level RT Predictor)"""
+        print("📦 Loading C1 Trial-Level RT Predictor...")
+
+        model = TrialLevelRTPredictor(
             n_channels=129,
             trial_length=200,
             pre_stim_points=50
-        )'''
-    }
-    return code[model_type]
+        )
+
+        checkpoint_path = self.model_path / "c1_model.pt"
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"C1 checkpoint not found: {checkpoint_path}")
+
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
+        model.load_state_dict(checkpoint['model_state_dict'])
+
+        model = model.to(self.device)
+        model.eval()
+
+        print(f"✅ C1 Trial-Level RT Predictor loaded")
+        return model
+
+    def get_model_challenge_2(self):
+        """Load C2 model (Domain Adaptation EEGNeX)"""
+        print("📦 Loading C2 Domain Adaptation EEGNeX...")
+
+        model = DomainAdaptationEEGNeX(
+            n_channels=129,
+            n_times=900,
+            challenge='c2',
+            output_range=(-3, 3)
+        )
+
+        checkpoint_path = self.model_path / "c2_model.pt"
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"C2 checkpoint not found: {checkpoint_path}")
+
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
+        model.load_state_dict(checkpoint['model_state_dict'])
+
+        model = model.to(self.device)
+        model.eval()
+
+        print(f"✅ C2 Domain Adaptation EEGNeX loaded")
+        return model
+'''
 
 
-def get_model_forward_code(model_type):
-    """Get forward pass code"""
-    code = {
-        'domain_adaptation': '''predictions = model(eeg_tensor)''',
-        'cross_task': '''predictions = model(eeg_tensor, task_name='contrast_change_detection')''',
-        'hybrid': '''predictions = model(eeg_tensor)''',
-        'trial_level': '''predictions = model(eeg_tensor)'''
-    }
-    return code[model_type]
-
-
-def create_submission(model_type, challenge, checkpoint_c1, checkpoint_c2, output_dir='submissions'):
+def create_submission(checkpoint_c1, checkpoint_c2, name='submission', output_dir='submissions'):
     """
-    Create submission zip file
+    Create submission ZIP file with proper format
 
     Args:
-        model_type: 'domain_adaptation', 'cross_task', or 'hybrid'
-        challenge: Name for submission (e.g., 'domain_adaptation_v1')
         checkpoint_c1: Path to C1 checkpoint
         checkpoint_c2: Path to C2 checkpoint
-        output_dir: Output directory
+        name: Submission name (default: submission)
+        output_dir: Output directory (default: submissions)
     """
-    print(f"Creating {model_type} submission: {challenge}")
+    print(f"Creating submission: {name}")
 
     # Create temp directory
     temp_dir = Path('temp_submission')
     temp_dir.mkdir(exist_ok=True)
 
-    # Copy model files
-    model_files = get_model_files(model_type)
-    for model_file in model_files:
-        src = Path(model_file)
-        dst = temp_dir / src.name
-        shutil.copy(src, dst)
-        print(f"  Copied {model_file}")
+    try:
+        # Create submission.py with embedded model code
+        submission_code = create_submission_py_content()
+        submission_path = temp_dir / 'submission.py'
+        with open(submission_path, 'w') as f:
+            f.write(submission_code)
+        print(f"  ✓ Created submission.py with Submission class")
 
-    # Copy checkpoints
-    shutil.copy(checkpoint_c1, temp_dir / 'model_c1.pt')
-    shutil.copy(checkpoint_c2, temp_dir / 'model_c2.pt')
-    print(f"  Copied checkpoints")
+        # Copy checkpoints with correct names
+        shutil.copy(checkpoint_c1, temp_dir / 'c1_model.pt')
+        print(f"  ✓ Copied C1 checkpoint: {checkpoint_c1}")
 
-    # Create submission.py
-    model_import = get_model_import(model_type)
-    model_creation_c1 = get_model_creation_code(model_type, 'c1')
-    model_creation_c2 = get_model_creation_code(model_type, 'c2')
-    forward_code = get_model_forward_code(model_type)
+        shutil.copy(checkpoint_c2, temp_dir / 'c2_model.pt')
+        print(f"  ✓ Copied C2 checkpoint: {checkpoint_c2}")
 
-    submission_code = f'''"""
-Submission script for {model_type}
-"""
+        # Create zip file
+        output_dir = Path(output_dir)
+        output_dir.mkdir(exist_ok=True)
 
-import torch
-import torch.nn as nn
-import numpy as np
-from pathlib import Path
+        zip_path = output_dir / f'{name}.zip'
 
-# Import model
-{model_import}
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for file in temp_dir.iterdir():
+                zipf.write(file, file.name)
 
+        print(f"  ✓ Created {zip_path}")
 
-def load_model_for_challenge(challenge_name, device='cuda'):
-    """
-    Load model for specific challenge
+        # Cleanup
+        shutil.rmtree(temp_dir)
 
-    Args:
-        challenge_name: 'c1' or 'c2'
-        device: 'cuda' or 'cpu'
+        print(f"\n✅ Submission created: {zip_path}")
+        print(f"   Contains:")
+        print(f"   - submission.py (with Submission class)")
+        print(f"   - c1_model.pt (Trial-Level RT Predictor)")
+        print(f"   - c2_model.pt (Domain Adaptation EEGNeX)")
+        print(f"\n   Ready to submit to competition!")
 
-    Returns:
-        model: Loaded model
-        metadata: Dict with normalization params
-    """
-    # Create model
-    if challenge_name == 'c1':
-        model = {model_creation_c1}
-    else:
-        model = {model_creation_c2}
+        return zip_path
 
-    # Load checkpoint
-    checkpoint_path = Path(__file__).parent / f'model_{{challenge_name}}.pt'
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-
-    # Load model weights
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.to(device)
-    model.eval()
-
-    # Get normalization parameters
-    metadata = {{
-        'y_mean': checkpoint.get('y_mean', 0.0),
-        'y_std': checkpoint.get('y_std', 1.0)
-    }}
-
-    return model, metadata
-
-
-def predict(model, eeg_data, metadata, device='cuda'):
-    """
-    Make prediction
-
-    Args:
-        model: Loaded model
-        eeg_data: EEG data (channels, time)
-        metadata: Normalization parameters
-        device: 'cuda' or 'cpu'
-
-    Returns:
-        prediction: Scalar prediction
-    """
-    # Convert to tensor
-    eeg_tensor = torch.FloatTensor(eeg_data).unsqueeze(0).to(device)  # (1, channels, time)
-
-    # Predict
-    with torch.no_grad():
-        {forward_code}
-
-    # Get scalar prediction
-    prediction = predictions.cpu().item()
-
-    # Denormalize (model predicts normalized values)
-    y_mean = metadata['y_mean']
-    y_std = metadata['y_std']
-    prediction_denorm = prediction * y_std + y_mean
-
-    return prediction_denorm
-
-
-if __name__ == '__main__':
-    # Test submission
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"Testing submission on {{device}}")
-
-    # Test C1
-    print("\\nTesting C1...")
-    model_c1, metadata_c1 = load_model_for_challenge('c1', device=device)
-    dummy_eeg = np.random.randn(129, 900).astype(np.float32)
-    pred_c1 = predict(model_c1, dummy_eeg, metadata_c1, device=device)
-    print(f"C1 prediction: {{pred_c1:.4f}}")
-
-    # Test C2
-    print("\\nTesting C2...")
-    model_c2, metadata_c2 = load_model_for_challenge('c2', device=device)
-    pred_c2 = predict(model_c2, dummy_eeg, metadata_c2, device=device)
-    print(f"C2 prediction: {{pred_c2:.4f}}")
-
-    print("\\nSubmission test passed!")
-'''
-
-    # Write submission.py
-    submission_path = temp_dir / 'submission.py'
-    with open(submission_path, 'w') as f:
-        f.write(submission_code)
-    print(f"  Created submission.py")
-
-    # Create zip file
-    output_dir = Path(output_dir)
-    output_dir.mkdir(exist_ok=True)
-
-    zip_path = output_dir / f'{challenge}_submission.zip'
-
-    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for file in temp_dir.iterdir():
-            zipf.write(file, file.name)
-
-    print(f"  Created {zip_path}")
-
-    # Cleanup
-    shutil.rmtree(temp_dir)
-
-    print(f"\\n✓ Submission created: {zip_path}")
-    print(f"  Ready to submit to competition!")
-
-    return zip_path
+    except Exception as e:
+        # Cleanup on error
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
+        raise e
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Create Advanced Model Submission')
-    parser.add_argument('--model', type=str, default='trial_level',
-                       choices=['domain_adaptation', 'cross_task', 'hybrid', 'trial_level'],
-                       help='Model type (default: trial_level)')
-    parser.add_argument('--name', type=str, default='submission',
-                       help='Submission name (default: submission)')
+    parser = argparse.ArgumentParser(
+        description='Create Submission ZIP',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python3 create_advanced_submission.py --checkpoint_c1 c1_best.pt --checkpoint_c2 c2_best.pt
+  python3 create_advanced_submission.py --checkpoint_c1 c1_best.pt --checkpoint_c2 c2_best.pt --name my_submission
+        """
+    )
     parser.add_argument('--checkpoint_c1', type=str, required=True,
-                       help='Path to C1 checkpoint')
+                       help='Path to C1 checkpoint (.pt file)')
     parser.add_argument('--checkpoint_c2', type=str, required=True,
-                       help='Path to C2 checkpoint')
+                       help='Path to C2 checkpoint (.pt file)')
+    parser.add_argument('--name', type=str, default='submission',
+                       help='Submission name (creates {name}.zip, default: submission)')
     parser.add_argument('--output_dir', type=str, default='submissions',
-                       help='Output directory')
+                       help='Output directory (default: submissions)')
 
     args = parser.parse_args()
 
+    # Verify checkpoints exist
+    c1_path = Path(args.checkpoint_c1)
+    c2_path = Path(args.checkpoint_c2)
+
+    if not c1_path.exists():
+        print(f"❌ C1 checkpoint not found: {c1_path}")
+        print(f"\nPlease provide the path to your C1 model checkpoint.")
+        print(f"Expected: Trial-Level RT Predictor checkpoint from DEBUG_C1_TRAINING.py")
+        return
+
+    if not c2_path.exists():
+        print(f"❌ C2 checkpoint not found: {c2_path}")
+        print(f"\nPlease provide the path to your C2 model checkpoint.")
+        print(f"Expected: Domain Adaptation EEGNeX checkpoint from DEBUG_C2_TRAINING.py")
+        return
+
     create_submission(
-        model_type=args.model,
-        challenge=args.name,
         checkpoint_c1=args.checkpoint_c1,
         checkpoint_c2=args.checkpoint_c2,
+        name=args.name,
         output_dir=args.output_dir
     )
 
