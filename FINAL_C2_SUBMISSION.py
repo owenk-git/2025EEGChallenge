@@ -167,14 +167,13 @@ def create_c2_submission(
     print(f"\nEnsemble weights: {dict(zip(model_types, ensemble_weights))}")
     print(f"Expected ensemble NRMSE: {np.average(val_nrmses, weights=ensemble_weights):.4f}\n")
 
-    # Load test dataset
+    # Load test dataset (without train parameter)
     print("Loading test dataset...")
     test_dataset = EEGChallengeDataset(
         task="rest",  # C2 uses resting state
         release="R11",
         cache_dir="./data_cache/eeg_challenge",
-        mini=False,
-        train=False  # Test set
+        mini=False
     )
 
     print(f"✅ Loaded {len(test_dataset.datasets)} test recordings\n")
