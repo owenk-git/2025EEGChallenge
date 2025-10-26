@@ -18,7 +18,8 @@ def get_model_files(model_type):
     files = {
         'domain_adaptation': ['models/domain_adaptation_eegnex.py'],
         'cross_task': ['models/cross_task_pretrain.py'],
-        'hybrid': ['models/hybrid_cnn_transformer_da.py']
+        'hybrid': ['models/hybrid_cnn_transformer_da.py'],
+        'trial_level': ['models/trial_level_rt_predictor.py']
     }
     return files[model_type]
 
@@ -28,7 +29,8 @@ def get_model_import(model_type):
     imports = {
         'domain_adaptation': 'from domain_adaptation_eegnex import DomainAdaptationEEGNeX',
         'cross_task': 'from cross_task_pretrain import CrossTaskPretrainModel',
-        'hybrid': 'from hybrid_cnn_transformer_da import HybridCNNTransformerDA'
+        'hybrid': 'from hybrid_cnn_transformer_da import HybridCNNTransformerDA',
+        'trial_level': 'from trial_level_rt_predictor import TrialLevelRTPredictor'
     }
     return imports[model_type]
 
