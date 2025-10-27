@@ -23,11 +23,18 @@ class MultiScaleConv1DBlock(nn.Module):
 
         self.branches = nn.ModuleList()
 
-        for kernel_size in kernel_sizes:
+        # Distribute channels evenly, give remaining to first branch
+        channels_per_branch = out_channels // len(kernel_sizes)
+        remaining_channels = out_channels % len(kernel_sizes)
+
+        for i, kernel_size in enumerate(kernel_sizes):
+            # First branch gets extra channels if division isn't even
+            branch_channels = channels_per_branch + (remaining_channels if i == 0 else 0)
+
             branch = nn.Sequential(
-                nn.Conv1d(in_channels, out_channels // len(kernel_sizes),
+                nn.Conv1d(in_channels, branch_channels,
                          kernel_size=kernel_size, padding=kernel_size//2),
-                nn.BatchNorm1d(out_channels // len(kernel_sizes)),
+                nn.BatchNorm1d(branch_channels),
                 nn.ELU(),
                 nn.Dropout(0.3)
             )
