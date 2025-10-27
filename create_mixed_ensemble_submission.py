@@ -43,15 +43,21 @@ def detect_model_architecture(checkpoint_path):
     """
     checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
 
-    # First check if model_name is stored in checkpoint
+    # First check if model_name is stored in checkpoint (BEST METHOD)
     if 'model_name' in checkpoint:
         model_name = checkpoint['model_name']
+        print(f"  Found model_name in checkpoint: {model_name}")
         if model_name == 'erp_mlp':
             return 'erp_mlp', 'ERPMLP'
         elif model_name == 'cnn_ensemble':
             return 'cnn_ensemble', 'CNNEnsemble'
         elif model_name == 'eegnex_improved':
             return 'eegnex_improved', 'EEGNeXImproved'
+        else:
+            print(f"  WARNING: Unknown model_name in checkpoint: {model_name}")
+            # Still try to detect from state_dict
+    else:
+        print(f"  No model_name in checkpoint, trying state_dict detection...")
 
     state_dict = checkpoint.get('model_state_dict', checkpoint)
 
