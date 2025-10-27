@@ -135,12 +135,22 @@ def create_submission_code(c1_models_info, c2_models_info):
         for name, code in model_codes.items()
     ])
 
+    # Build submission code using string concatenation to avoid f-string nesting issues
+    n_c1 = len(c1_models_info)
+    n_c2 = len(c2_models_info)
+    c1_types = ", ".join(set(info[1] for info in c1_models_info))
+    c2_types = ", ".join(set(info[1] for info in c2_models_info))
+    c1_configs_str = str([(info[1], info[2]) for info in c1_models_info])
+    c2_configs_str = str([(info[1], info[2]) for info in c2_models_info])
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+
     submission_code = f'''"""
 EEG Challenge 2025 - Mixed Ensemble Submission
-Generated: {datetime.now().strftime("%Y%m%d_%H%M")}
+Generated: {timestamp}
 
-C1 Models: {len(c1_models_info)} ({", ".join(set(info[1] for info in c1_models_info))})
-C2 Models: {len(c2_models_info)} ({", ".join(set(info[1] for info in c2_models_info))})
+C1 Models: {n_c1} ({c1_types})
+C2 Models: {n_c2} ({c2_types})
 
 Strategy: Ensemble multiple models at test time by averaging predictions.
 """
@@ -164,8 +174,8 @@ class Submission:
     """
     Mixed Ensemble Submission
 
-    C1: {len(c1_models_info)} models
-    C2: {len(c2_models_info)} models
+    C1: {n_c1} models
+    C2: {n_c2} models
     """
 
     def __init__(self, SFREQ, DEVICE):
@@ -173,8 +183,8 @@ class Submission:
         self.device = DEVICE
         self.model_path = self.load_model_path()
 
-        print(f"🔄 Loading {{len(c1_models_info)}}} C1 models")
-        print(f"🔄 Loading {{len(c2_models_info)}}} C2 models")
+        print(f"🔄 Loading {n_c1} C1 models")
+        print(f"🔄 Loading {n_c2} C2 models")
 
     def load_model_path(self):
         """Find model directory"""
@@ -188,7 +198,7 @@ class Submission:
         models = []
 
         # Model configurations
-        c1_configs = {c1_models_info}
+        c1_configs = {c1_configs_str}
 
         for idx, (model_name, class_name) in enumerate(c1_configs):
             # Create model based on class name
@@ -203,11 +213,11 @@ class Submission:
             elif class_name == 'TrialLevelRTPredictor':
                 model = TrialLevelRTPredictor(n_channels=129, trial_length=200, pre_stim_points=50)
             else:
-                print(f"⚠️  Unknown model class: {{class_name}}")
+                print(f"⚠️  Unknown model class: {{{{class_name}}}}")
                 continue
 
             # Load checkpoint
-            checkpoint_name = f'c1_model_{{idx}}.pth'
+            checkpoint_name = f'c1_model_{{{{idx}}}}.pth'
             checkpoint_path = self.model_path / checkpoint_name
 
             try:
@@ -216,15 +226,15 @@ class Submission:
                 model.eval()
                 model.to(self.device)
                 models.append(model)
-                print(f"✅ Loaded C1 model {{idx}} ({{model_name}})")
+                print(f"✅ Loaded C1 model {{{{idx}}}} ({{{{model_name}}}}) ")
             except Exception as e:
-                print(f"⚠️  Failed to load C1 model {{idx}}: {{e}}")
+                print(f"⚠️  Failed to load C1 model {{{{idx}}}}: {{{{e}}}}")
                 pass
 
         if len(models) == 0:
             raise RuntimeError("Failed to load any C1 models!")
 
-        print(f"✅ Loaded {{len(models)}}/{len(c1_models_info)} C1 models")
+        print(f"✅ Loaded {{{{len(models)}}}} C1 models")
         return EnsembleModel(models, self.device)
 
     def get_model_challenge_2(self):
@@ -232,7 +242,7 @@ class Submission:
         models = []
 
         # Model configurations
-        c2_configs = {c2_models_info}
+        c2_configs = {c2_configs_str}
 
         for idx, (model_name, class_name) in enumerate(c2_configs):
             # Create model based on class name
@@ -248,11 +258,11 @@ class Submission:
                 print(f"⚠️  TrialLevelRTPredictor not suitable for C2")
                 continue
             else:
-                print(f"⚠️  Unknown model class: {{class_name}}")
+                print(f"⚠️  Unknown model class: {{{{class_name}}}}")
                 continue
 
             # Load checkpoint
-            checkpoint_name = f'c2_model_{{idx}}.pth'
+            checkpoint_name = f'c2_model_{{{{idx}}}}.pth'
             checkpoint_path = self.model_path / checkpoint_name
 
             try:
@@ -261,15 +271,15 @@ class Submission:
                 model.eval()
                 model.to(self.device)
                 models.append(model)
-                print(f"✅ Loaded C2 model {{idx}} ({{model_name}})")
+                print(f"✅ Loaded C2 model {{{{idx}}}} ({{{{model_name}}}}) ")
             except Exception as e:
-                print(f"⚠️  Failed to load C2 model {{idx}}: {{e}}")
+                print(f"⚠️  Failed to load C2 model {{{{idx}}}}: {{{{e}}}}")
                 pass
 
         if len(models) == 0:
             raise RuntimeError("Failed to load any C2 models!")
 
-        print(f"✅ Loaded {{len(models)}}/{len(c2_models_info)} C2 models")
+        print(f"✅ Loaded {{{{len(models)}}}} C2 models")
         return EnsembleModel(models, self.device)
 
 
