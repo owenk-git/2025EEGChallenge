@@ -142,13 +142,25 @@ def create_submission_code(c1_models_info, c2_models_info):
     """
 
     # Collect unique model codes
-    all_model_names = set([info[1] for info in c1_models_info + c2_models_info])
+    # c1_models_info and c2_models_info are (model_name, class_name) tuples
+    all_model_names = set([info[0] for info in c1_models_info + c2_models_info])
     model_codes = {}
 
+    print(f"\nLoading model code for: {all_model_names}")
+
     for model_name in all_model_names:
+        if model_name == 'unknown':
+            raise ValueError(f"Cannot create submission with unknown model types! Please check model detection.")
+
         code = get_model_code(model_name)
         if code:
             model_codes[model_name] = code
+            print(f"  ✅ Loaded code for {model_name}")
+        else:
+            raise ValueError(f"Failed to load model code for {model_name}. Check if model file exists.")
+
+    if len(model_codes) == 0:
+        raise ValueError("No model code loaded! Cannot create submission.")
 
     # Combine all model codes
     combined_model_code = '\n\n'.join([
