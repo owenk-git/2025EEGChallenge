@@ -327,3 +327,99 @@ If still having issues, the problem is likely:
 1. Lambda values too small/large
 2. Model architecture mismatch
 3. Data quality issues
+
+---
+
+## NEW: Multi-Scale CNN Architecture ⭐
+
+### 6. Multi-Scale CNN with Different Kernel Sizes
+
+**Files:**
+- Model: `models/multiscale_cnn_rt.py`
+- Training: `train_c1_multiscale_cnn.py`
+
+**Concept:**
+Uses parallel Conv1D branches with different kernel sizes to capture different temporal patterns:
+- **Small kernels (3, 5, 7)**: Sharp ERPs, high-frequency components
+- **Medium kernels (11, 15, 21)**: Alpha/beta oscillations (8-30 Hz)
+- **Large kernels (25, 31)**: Slow waves, theta/delta (1-8 Hz)
+
+**Two variants:**
+
+1. **MultiScale** (recommended) - Cleaner parallel branches:
+```bash
+python3 train_c1_multiscale_cnn.py \
+  --model multiscale \
+  --epochs 100 \
+  --batch_size 32 \
+  --device cuda
+```
+
+2. **Inception** - More aggressive (Inception-style):
+```bash
+python3 train_c1_multiscale_cnn.py \
+  --model inception \
+  --epochs 100 \
+  --batch_size 32 \
+  --device cuda
+```
+
+**Why this works:**
+- Different EEG patterns occur at different time scales
+- P300 ERP peaks at ~300ms → needs kernels that capture 30-40 samples
+- Alpha oscillations: ~10 Hz (100ms cycles) → needs specific kernel sizes
+- Motor preparation: slower buildup → needs larger context windows
+- Parallel branches learn complementary temporal features
+
+**Architecture details:**
+```python
+# Example: MultiScaleConv1DBlock with 4 kernel sizes
+kernels = [3, 7, 15, 25]
+
+# Each processes same input independently:
+- kernel=3:  captures fast transitions (sharp ERPs)
+- kernel=7:  captures medium patterns
+- kernel=15: captures alpha/beta rhythms
+- kernel=25: captures slow drift, theta waves
+
+# Then concatenate all outputs → rich multi-scale representation
+```
+
+**Expected improvement:** 
+- Better temporal pattern extraction
+- Target: 1.03-1.06 NRMSE
+- Works well when combined with distribution matching loss
+
+**Output:**
+- `checkpoints/c1_multiscale_cnn_best.pt` (MultiScale variant)
+- `checkpoints/c1_inception_cnn_best.pt` (Inception variant)
+
+---
+
+## Updated Recommended Strategy
+
+**If you want to try the new CNN architecture:**
+
+```bash
+# Option 1: Run multi-scale CNN alone
+nohup python3 train_c1_multiscale_cnn.py \
+  --model multiscale \
+  --epochs 100 \
+  --batch_size 32 \
+  --device cuda \
+  > logs/multiscale_cnn.log 2>&1 &
+
+# Option 2: Run all 4 best approaches in parallel
+nohup python3 train_c1_combined_best.py --epochs 150 --batch_size 32 --device cuda > logs/combined.log 2>&1 &
+nohup python3 train_c1_distribution_matching.py --epochs 100 --batch_size 32 --device cuda > logs/distrib.log 2>&1 &
+nohup python3 train_c1_mixup.py --epochs 100 --batch_size 32 --device cuda > logs/mixup.log 2>&1 &
+nohup python3 train_c1_multiscale_cnn.py --model multiscale --epochs 100 --batch_size 32 --device cuda > logs/multiscale.log 2>&1 &
+```
+
+**Which kernel sizes are best?**
+Depends on what patterns are most predictive:
+- If P300 amplitude matters most → medium kernels (11-21)
+- If fast ERPs matter → small kernels (3-7)  
+- If attention state (alpha) matters → medium-large kernels (15-25)
+- Best approach: **use all in parallel** (multi-scale)
+
