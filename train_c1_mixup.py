@@ -16,7 +16,7 @@ import argparse
 from tqdm import tqdm
 
 from models.trial_level_rt_predictor import TrialLevelRTPredictor
-from data.trial_level_dataset import TrialLevelDataset
+from data.trial_level_loader import TrialLevelDataset
 
 
 def mixup_data(x, y, alpha=0.4):

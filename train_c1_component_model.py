@@ -13,7 +13,7 @@ import argparse
 from tqdm import tqdm
 
 from models.rt_component_model import RTComponentModel
-from data.trial_level_dataset import TrialLevelDataset
+from data.trial_level_loader import TrialLevelDataset
 
 
 def train_epoch(model, train_loader, criterion, optimizer, device):
