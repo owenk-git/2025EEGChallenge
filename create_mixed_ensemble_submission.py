@@ -42,33 +42,57 @@ def detect_model_architecture(checkpoint_path):
     Returns model code and class name
     """
     checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+
+    # First check if model_name is stored in checkpoint
+    if 'model_name' in checkpoint:
+        model_name = checkpoint['model_name']
+        if model_name == 'erp_mlp':
+            return 'erp_mlp', 'ERPMLP'
+        elif model_name == 'cnn_ensemble':
+            return 'cnn_ensemble', 'CNNEnsemble'
+        elif model_name == 'eegnex_improved':
+            return 'eegnex_improved', 'EEGNeXImproved'
+
     state_dict = checkpoint.get('model_state_dict', checkpoint)
 
     # Check for characteristic keys
     keys = list(state_dict.keys())
 
-    # ERP MLP: has 'mlp.0.weight' and small number of params
-    if any('mlp' in k for k in keys) and len(keys) < 20:
-        return 'erp_mlp', 'ERPMLP'
+    print(f"  DEBUG: Detecting architecture from {len(keys)} keys")
+    print(f"  DEBUG: Sample keys: {keys[:5] if len(keys) > 5 else keys}")
 
     # Domain Adaptation EEGNeX: has 'subject_discriminator'
     if any('subject_discriminator' in k for k in keys):
         return 'domain_adaptation_eegnex', 'DomainAdaptationEEGNeX'
 
-    # CNN Ensemble: has multiple branch patterns
-    if any('branch' in k for k in keys):
+    # CNN Ensemble: has branch patterns (spatial_branch, temporal_branch, hybrid_branch)
+    if any('spatial_branch' in k or 'temporal_branch' in k or 'hybrid_branch' in k for k in keys):
         return 'cnn_ensemble', 'CNNEnsemble'
 
-    # EEGNeX: has 'depthwise' or 'pointwise'
+    # ERP MLP: has 'mlp' and small number of params
+    if any('mlp' in k for k in keys) and len(keys) < 30:
+        return 'erp_mlp', 'ERPMLP'
+
+    # EEGNeX: has 'depthwise' or 'pointwise' or 'block'
     if any('depthwise' in k or 'pointwise' in k for k in keys):
+        return 'eegnex_improved', 'EEGNeXImproved'
+
+    # Check for block structure (EEGNeX pattern)
+    if any('block' in k for k in keys):
         return 'eegnex_improved', 'EEGNeXImproved'
 
     # Trial Level RT Predictor
     if any('pre_encoder' in k and 'post_encoder' in k for k in keys):
         return 'trial_level_rt', 'TrialLevelRTPredictor'
 
-    # Default fallback
-    return 'unknown', 'UnknownModel'
+    # Print keys for debugging
+    print(f"  WARNING: Could not detect model type. Keys: {keys[:10]}")
+
+    # Default fallback - assume EEGNeX if it has many layers
+    if len(keys) > 50:
+        return 'eegnex_improved', 'EEGNeXImproved'
+    else:
+        return 'cnn_ensemble', 'CNNEnsemble'
 
 
 def get_model_code(model_name):
@@ -136,12 +160,13 @@ def create_submission_code(c1_models_info, c2_models_info):
     ])
 
     # Build submission code using string concatenation to avoid f-string nesting issues
+    # c1_models_info and c2_models_info are already (model_name, class_name) tuples
     n_c1 = len(c1_models_info)
     n_c2 = len(c2_models_info)
-    c1_types = ", ".join(set(info[1] for info in c1_models_info))
-    c2_types = ", ".join(set(info[1] for info in c2_models_info))
-    c1_configs_str = str([(info[1], info[2]) for info in c1_models_info])
-    c2_configs_str = str([(info[1], info[2]) for info in c2_models_info])
+    c1_types = ", ".join(set(info[0] for info in c1_models_info))
+    c2_types = ", ".join(set(info[0] for info in c2_models_info))
+    c1_configs_str = str(c1_models_info)
+    c2_configs_str = str(c2_models_info)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
 
