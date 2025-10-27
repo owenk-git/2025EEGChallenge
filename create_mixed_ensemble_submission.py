@@ -230,11 +230,12 @@ class Submission:
         print(f"🔄 Loading {n_c2} C2 models")
 
     def load_model_path(self):
-        """Find model directory"""
-        model_dir = Path('/app/program')
-        if not model_dir.exists():
-            model_dir = Path('.')
-        return model_dir
+        """Find model directory - checkpoints are in same dir as submission.py"""
+        # On competition server, files are in /app/input/res/
+        # Locally, they're in current directory
+        # Use __file__ to find where this script is located
+        script_dir = Path(__file__).parent
+        return script_dir
 
     def get_model_challenge_1(self):
         """Load C1 ensemble"""
