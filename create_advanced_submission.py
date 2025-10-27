@@ -166,8 +166,8 @@ class TrialLevelRTPredictor(nn.Module):
 
         # If we extracted multiple trials, aggregate to recording-level prediction
         if n_times > self.trial_length and len(trials) > 0:
-            # Take median across all trials
-            rt_pred = torch.median(rt_pred).unsqueeze(0).unsqueeze(0)  # (1, 1)
+            # Take mean across all trials (preserves variance better than median)
+            rt_pred = rt_pred.mean(dim=0, keepdim=True)  # (1, 1)
 
         return rt_pred
 
