@@ -250,11 +250,11 @@ class Submission:
             elif class_name == 'TrialLevelRTPredictor':
                 model = TrialLevelRTPredictor(n_channels=129, trial_length=200, pre_stim_points=50)
             else:
-                print(f"⚠️  Unknown model class: {{{{class_name}}}}")
+                print("⚠️  Unknown model class: " + str(class_name))
                 continue
 
             # Load checkpoint
-            checkpoint_name = f'c1_model_{{{{idx}}}}.pth'
+            checkpoint_name = 'c1_model_' + str(idx) + '.pth'
             checkpoint_path = self.model_path / checkpoint_name
 
             try:
@@ -263,15 +263,15 @@ class Submission:
                 model.eval()
                 model.to(self.device)
                 models.append(model)
-                print(f"✅ Loaded C1 model {{{{idx}}}} ({{{{model_name}}}}) ")
+                print("✅ Loaded C1 model " + str(idx) + " (" + str(model_name) + ")")
             except Exception as e:
-                print(f"⚠️  Failed to load C1 model {{{{idx}}}}: {{{{e}}}}")
+                print("⚠️  Failed to load C1 model " + str(idx) + ": " + str(e))
                 pass
 
         if len(models) == 0:
             raise RuntimeError("Failed to load any C1 models!")
 
-        print(f"✅ Loaded {{{{len(models)}}}} C1 models")
+        print("✅ Loaded " + str(len(models)) + " C1 models")
         return EnsembleModel(models, self.device)
 
     def get_model_challenge_2(self):
@@ -292,14 +292,14 @@ class Submission:
             elif class_name == 'DomainAdaptationEEGNeX':
                 model = DomainAdaptationEEGNeX(n_channels=129, n_times=200, challenge='c2', num_subjects=100, output_range=(-3, 3))
             elif class_name == 'TrialLevelRTPredictor':
-                print(f"⚠️  TrialLevelRTPredictor not suitable for C2")
+                print("⚠️  TrialLevelRTPredictor not suitable for C2")
                 continue
             else:
-                print(f"⚠️  Unknown model class: {{{{class_name}}}}")
+                print("⚠️  Unknown model class: " + str(class_name))
                 continue
 
             # Load checkpoint
-            checkpoint_name = f'c2_model_{{{{idx}}}}.pth'
+            checkpoint_name = 'c2_model_' + str(idx) + '.pth'
             checkpoint_path = self.model_path / checkpoint_name
 
             try:
@@ -308,15 +308,15 @@ class Submission:
                 model.eval()
                 model.to(self.device)
                 models.append(model)
-                print(f"✅ Loaded C2 model {{{{idx}}}} ({{{{model_name}}}}) ")
+                print("✅ Loaded C2 model " + str(idx) + " (" + str(model_name) + ")")
             except Exception as e:
-                print(f"⚠️  Failed to load C2 model {{{{idx}}}}: {{{{e}}}}")
+                print("⚠️  Failed to load C2 model " + str(idx) + ": " + str(e))
                 pass
 
         if len(models) == 0:
             raise RuntimeError("Failed to load any C2 models!")
 
-        print(f"✅ Loaded {{{{len(models)}}}} C2 models")
+        print("✅ Loaded " + str(len(models)) + " C2 models")
         return EnsembleModel(models, self.device)
 
 
