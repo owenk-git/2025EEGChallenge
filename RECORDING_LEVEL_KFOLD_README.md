@@ -129,7 +129,32 @@ checkpoints_kfold/erp_mlp_c1/fold_1_best.pth  (fold 2 = index 1)
 
 ## Creating Submission
 
-After training completes, create submission with the best fold:
+After training completes, you have TWO options:
+
+### Option 1: Ensemble All Folds (RECOMMENDED)
+
+Use ALL K fold models at test time and average predictions.
+
+For K=5 folds, this loads best_k0, best_k1, best_k2, best_k3, best_k4 and ensembles them:
+
+```bash
+# Ensemble all 5 folds for C1 and C2
+python3 create_kfold_ensemble_submission.py \
+  --model erp_mlp \
+  --c1_dir checkpoints_kfold/erp_mlp_c1 \
+  --c2_dir checkpoints_kfold/erp_mlp_c2 \
+  --name erp_kfold5_ensemble
+```
+
+**Why ensemble?**
+- Each fold learned from different training data
+- Averaging reduces overfitting and variance
+- Typically **2-5% better** than single best fold
+- More robust predictions
+
+### Option 2: Single Best Fold
+
+Use only the best performing fold:
 
 ```bash
 # Check kfold_summary.json to find best fold
@@ -141,6 +166,11 @@ python3 create_universal_submission.py \
   --c1 checkpoints_kfold/erp_mlp_c1/fold_1_best.pth \
   --c2 checkpoints_kfold/erp_mlp_c2/fold_0_best.pth
 ```
+
+**Use this if:**
+- ZIP size is constrained (ensemble is 5x larger)
+- You want faster inference
+- One fold significantly outperforms others
 
 ## Why N-Fold Validation Matters
 
