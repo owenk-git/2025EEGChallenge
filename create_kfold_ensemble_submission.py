@@ -72,7 +72,7 @@ def create_submission_code(model_name, n_folds_c1, n_folds_c2):
     elif model_name == 'cnn_ensemble':
         model_class = 'CNNEnsemble'
     elif model_name == 'eegnex_improved':
-        model_class = 'ImprovedEEGNeX'
+        model_class = 'EEGNeXImproved'
     else:
         raise ValueError(f"Unknown model: {model_name}")
 

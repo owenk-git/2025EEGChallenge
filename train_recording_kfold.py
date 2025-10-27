@@ -29,7 +29,7 @@ import json
 # Import models
 from models.erp_features_mlp import ERPMLP
 from models.cnn_ensemble import CNNEnsemble
-from models.eegnex_augmented import ImprovedEEGNeX
+from models.eegnex_augmented import EEGNeXImproved
 
 # Import dataset
 from data.official_eegdash_loader import OfficialEEGDashDataset
@@ -81,7 +81,7 @@ def create_model(model_name, challenge, device):
     elif model_name == 'cnn_ensemble':
         model = CNNEnsemble(n_channels=129, n_times=200, challenge_name=challenge)
     elif model_name == 'eegnex_improved':
-        model = ImprovedEEGNeX(n_channels=129, n_times=200, challenge_name=challenge)
+        model = EEGNeXImproved(n_channels=129, n_times=200, challenge_name=challenge)
     else:
         raise ValueError(f"Unknown model: {model_name}")
 
