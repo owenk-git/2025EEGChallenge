@@ -423,3 +423,106 @@ Depends on what patterns are most predictive:
 - If attention state (alpha) matters → medium-large kernels (15-25)
 - Best approach: **use all in parallel** (multi-scale)
 
+
+---
+
+## NEW: STFT-based 2D CNN ⭐⭐
+
+### 7. Time-Frequency 2D CNN with STFT
+
+**Files:**
+- Model: `models/stft_cnn_rt.py`
+- Training: `train_c1_stft_cnn.py`
+
+**Concept:**
+Uses Short-Time Fourier Transform (STFT) to convert EEG from time domain to **time-frequency domain**, then applies 2D CNN.
+
+**Why this is powerful for EEG:**
+EEG is fundamentally oscillatory - brain activity manifests as rhythmic patterns:
+- **Alpha (8-12 Hz)**: Attention, alertness, relaxation
+- **Beta (13-30 Hz)**: Motor preparation, active thinking
+- **Theta (4-8 Hz)**: Memory, cognitive processing
+- **Gamma (>30 Hz)**: Binding, perception
+
+**Key insight:** RT depends on WHEN and WHICH frequencies are present!
+- High alpha pre-stimulus → slower RT (less attentive)
+- Strong beta suppression → faster RT (motor ready)
+- STFT captures BOTH timing and frequency content
+
+**Two variants:**
+
+1. **STFT_2DCNN** (general approach) - Learn from full spectrogram:
+```bash
+python3 train_c1_stft_cnn.py \
+  --model stft \
+  --epochs 100 \
+  --batch_size 32 \
+  --n_fft 64 \
+  --hop_length 16 \
+  --device cuda
+```
+
+2. **FrequencyBandCNN** (explicit bands) - Process each frequency band separately:
+```bash
+python3 train_c1_stft_cnn.py \
+  --model freqband \
+  --epochs 100 \
+  --batch_size 32 \
+  --device cuda
+```
+
+**STFT Parameters:**
+- `--n_fft 64`: FFT size (higher = better frequency resolution, worse time resolution)
+- `--hop_length 16`: Time step between windows (smaller = more time detail)
+
+```
+Frequency resolution = sfreq / n_fft = 100 Hz / 64 = 1.56 Hz/bin
+Time resolution = hop_length / sfreq = 16 / 100 = 160 ms
+```
+
+**Architecture:**
+```
+Input: (batch, 129 channels, 200 time points)
+   ↓
+STFT: Convert each channel to time-frequency
+   ↓
+Output: (batch, 129 channels, 33 freq_bins, 12 time_bins)
+   ↓
+2D Conv: Process as multi-channel spectrogram image
+   ↓
+Global pooling + FC → RT prediction
+```
+
+**FrequencyBandCNN details:**
+Explicitly extracts and processes frequency bands:
+```python
+Delta (1-4 Hz)   → CNN branch → 16 features
+Theta (4-8 Hz)   → CNN branch → 16 features  
+Alpha (8-12 Hz)  → CNN branch → 32 features (important for attention)
+Beta (13-30 Hz)  → CNN branch → 32 features (important for motor)
+Gamma (30-50 Hz) → CNN branch → 16 features
+                      ↓
+                 Concatenate → Fusion → RT
+```
+
+**Advantages over raw time-series:**
+- ✅ Captures oscillatory patterns explicitly
+- ✅ Invariant to phase shifts (magnitude-based)
+- ✅ Can identify which frequency bands predict RT
+- ✅ 2D convolutions capture time-frequency patterns
+- ✅ Well-established in EEG analysis
+
+**Expected improvement:**
+- Should excel if oscillatory patterns matter
+- Target: 1.03-1.07 NRMSE
+- Works best when pre-stimulus alpha or motor beta are predictive
+
+**Output:**
+- `checkpoints/c1_stft_cnn_best.pt` (STFT variant)
+- `checkpoints/c1_freqband_cnn_best.pt` (FrequencyBand variant)
+
+**When to use this:**
+- If you suspect oscillatory patterns matter (they usually do in EEG!)
+- If raw time-series models aren't capturing the signal
+- For interpretability (can visualize which frequencies matter)
+
