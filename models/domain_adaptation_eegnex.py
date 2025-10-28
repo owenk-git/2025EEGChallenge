@@ -217,7 +217,8 @@ class DomainAdaptationEEGNeX(nn.Module):
 
         # Task prediction
         predictions = self.task_predictor(features)  # (batch, 1)
-        predictions = predictions.squeeze(-1)  # (batch,)
+        # KEEP (batch, 1) shape - competition expects this format
+        # predictions = predictions.squeeze(-1)  # REMOVED - was causing shape error
 
         # Clip predictions to valid range
         predictions = torch.clamp(predictions, self.output_range[0], self.output_range[1])
